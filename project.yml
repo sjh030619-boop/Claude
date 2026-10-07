@@ -1,0 +1,43 @@
+name: TokenWidget
+options:
+  bundleIdPrefix: com.example
+  deploymentTarget:
+    iOS: "17.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    # 본인 Apple Developer 팀 ID로 바꾸세요
+    DEVELOPMENT_TEAM: ""
+targets:
+  TokenWidget:
+    type: application
+    platform: iOS
+    sources: [App, Shared]
+    entitlements:
+      path: App/TokenWidget.entitlements
+      properties:
+        com.apple.security.application-groups: [group.com.example.tokenwidget]
+        keychain-access-groups: ["$(AppIdentifierPrefix)com.example.tokenwidget.shared"]
+    info:
+      path: App/Info.plist
+      properties:
+        UILaunchScreen: {}
+        KeychainGroup: "$(AppIdentifierPrefix)com.example.tokenwidget.shared"
+    dependencies:
+      - target: TokenWidgetExtension
+  TokenWidgetExtension:
+    type: app-extension
+    platform: iOS
+    sources: [Widget, Shared]
+    entitlements:
+      path: Widget/TokenWidgetExtension.entitlements
+      properties:
+        com.apple.security.application-groups: [group.com.example.tokenwidget]
+        keychain-access-groups: ["$(AppIdentifierPrefix)com.example.tokenwidget.shared"]
+    info:
+      path: Widget/Info.plist
+      properties:
+        CFBundleDisplayName: Token Widget
+        KeychainGroup: "$(AppIdentifierPrefix)com.example.tokenwidget.shared"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
