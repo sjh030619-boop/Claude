@@ -1,0 +1,26 @@
+#ifndef HANGUL_H
+#define HANGUL_H
+
+#include <stdint.h>
+
+/* Font tables (generated: font_data.c) */
+extern const int hg_height;           /* cell height in pixels */
+extern const int hg_count;            /* number of glyphs */
+extern const uint16_t hg_cps[];       /* sorted code points */
+extern const uint8_t hg_adv[];        /* advance width per glyph */
+extern const uint16_t hg_bits[];      /* hg_height rows per glyph, MSB = left */
+
+/* Text pages (generated: pages.c) */
+extern const char *const hg_pages[];
+extern const int hg_page_count;
+
+/* Provided by the host program: set one black pixel. Must clip. */
+void hg_plot(int x, int y);
+
+/* Draw UTF-8 text in the box starting at (x, y) with the given width. Wraps at
+   the width and on '\n'. `line_gap` = extra pixels between lines. Lines whose
+   y is outside [0, 64) are still laid out but not visible (hg_plot clips).
+   Returns the y coordinate just below the last line. */
+int hg_draw_text(int x, int y, int width, int line_gap, const char *utf8);
+
+#endif
