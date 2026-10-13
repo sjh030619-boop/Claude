@@ -13,9 +13,14 @@ static const hg_file folder0[] = {
     "D<0 : 허근" },
   { "삼각함수",
     "[삼각함수 기본]\n"
-    "sin²x+cos²x=1\n"
-    "tanx = sinx/cosx\n"
-    "1+tan²x = sec²x" },
+    "sin²θ+cos²θ=1\n"
+    "tanθ = sinθ/cosθ\n"
+    "1+tan²θ = sec²θ"
+    "\f"
+    "[수열·첨자 예시]\n"
+    "a_{n+1} = a_{n} + d\n"
+    "x^{10}, e^{-x}, H_{2}O\n"
+    "α β γ π ≤ ≥ ≠ ∞" },
 };
 static const hg_file folder1[] = {
   { "조작법",

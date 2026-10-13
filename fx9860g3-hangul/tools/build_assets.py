@@ -17,6 +17,31 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 
+TINY = {  # 3x5 glyphs for _{...} / ^{...}; 5 rows, 3 bits each
+    "0": "111 101 101 101 111", "1": "010 110 010 010 111", "2": "111 001 111 100 111",
+    "3": "111 001 111 001 111", "4": "101 101 111 001 001", "5": "111 100 111 001 111",
+    "6": "111 100 111 101 111", "7": "111 001 001 010 010", "8": "111 101 111 101 111",
+    "9": "111 101 111 001 111",
+    "A": "010 101 111 101 101", "B": "110 101 110 101 110", "C": "011 100 100 100 011",
+    "D": "110 101 101 101 110", "E": "111 100 110 100 111", "F": "111 100 110 100 100",
+    "G": "011 100 101 101 011", "H": "101 101 111 101 101", "I": "111 010 010 010 111",
+    "J": "001 001 001 101 010", "K": "101 101 110 101 101", "L": "100 100 100 100 111",
+    "M": "101 111 111 101 101", "N": "110 101 101 101 101", "O": "010 101 101 101 010",
+    "P": "110 101 110 100 100", "Q": "010 101 101 011 001", "R": "110 101 110 101 101",
+    "S": "011 100 010 001 110", "T": "111 010 010 010 010", "U": "101 101 101 101 111",
+    "V": "101 101 101 101 010", "W": "101 101 111 111 101", "X": "101 101 010 101 101",
+    "Y": "101 101 010 010 010", "Z": "111 001 010 100 111",
+    "+": "000 010 111 010 000", "-": "000 000 111 000 000", "=": "000 111 000 111 000",
+    "(": "001 010 010 010 001", ")": "100 010 010 010 100", ".": "000 000 000 000 010",
+    ",": "000 000 000 010 100", "/": "001 001 010 100 100", " ": "000 000 000 000 000",
+}
+
+# Symbols the small fonts may lack; taken from a larger Galmuri when missing.
+EXTRA = (set(range(0x391, 0x3AA)) | set(range(0x3B1, 0x3CA)) |
+         {0x2264, 0x2265, 0x2260, 0x2248, 0x221E, 0x2211, 0x222B, 0x2202, 0x220F, 0x221A,
+          0x2234, 0xB1, 0xD7, 0xF7, 0xBD, 0x2153, 0xBC, 0xB2, 0xB3, 0xB9, 0x207F, 0x3C0})
+
+
 def ksx1001_chars():
     """KS X 1001 Hangul syllables (2350) + symbols + compat Jamo + Greek."""
     out = set()
@@ -49,10 +74,14 @@ def parse_bdf(path, wanted):
     return asc, glyphs
 
 
-def to_rows(g, top, height):
+def to_rows(g, top, height, fit=False):
     """Return `height` uint16 rows (MSB = leftmost pixel) in a cell whose top is
-    `top` pixels above the baseline."""
+    `top` pixels above the baseline. With fit=True (glyph borrowed from a larger
+    font) a glyph taller than the cell is shifted down instead of being cut."""
     adv, w, h, xo, yo, rows = g
+    if fit:
+        shift = max(0, (yo + h - 1) - top)  # rows sticking out above the cell
+        yo -= shift
     cell = [0] * height
     for i, hexrow in enumerate(rows):
         nbits = len(hexrow) * 4
@@ -71,14 +100,22 @@ def build_font(size, used, only_used):
     wanted = set(range(0x20, 0x7F)) | set(used)
     if not only_used:
         wanted |= ksx1001_chars()
+    wanted |= EXTRA
     asc, glyphs = parse_bdf(bdf, wanted)
+    own = dict(glyphs)  # cell height is decided by the selected font only
+    for fb in (9, 11):
+        gap = {c for c in wanted if c not in glyphs}
+        if not gap or fb == size:
+            continue
+        _, more = parse_bdf(ROOT / "fonts" / f"Galmuri{fb}.bdf", gap)
+        glyphs.update(more)
     missing = sorted(c for c in used if c not in glyphs and c not in (0x0A,))
     if missing:
         print("warning: no glyph for:", "".join(map(chr, missing)), file=sys.stderr)
 
     # vertical extent actually used
-    top = max(g[4] + g[2] - 1 for g in glyphs.values() if g[2])
-    bot = min(g[4] for g in glyphs.values() if g[2])
+    top = max(g[4] + g[2] - 1 for g in own.values() if g[2])
+    bot = min(g[4] for g in own.values() if g[2])
     height = top - bot + 1
     cps = sorted(glyphs)
 
@@ -96,8 +133,15 @@ def build_font(size, used, only_used):
     lines += ["  " + ", ".join(str(glyphs[c][0]) for c in cps[i:i + 24]) + "," for i in range(0, len(cps), 24)]
     lines += ["};", "const uint16_t hg_bits[] = {"]
     for c in cps:
-        r = to_rows(glyphs[c], top, height)
+        r = to_rows(glyphs[c], top, height, fit=c not in own)
         lines.append("  " + ",".join("0x%04X" % v for v in r) + ",")
+    lines.append("};")
+    lines += ["", "/* 3x5 glyphs for _{} and ^{}: ASCII 0x20..0x7E, 5 rows of 3 bits (bit2 = left). */",
+              "const uint8_t hg_tiny[95][5] = {"]
+    for code in range(0x20, 0x7F):
+        g = TINY.get(chr(code).upper(), "000 000 000 000 000")
+        rows = [int(r, 2) for r in g.split()]
+        lines.append("  {" + ",".join(map(str, rows)) + "},")
     lines.append("};")
     (ROOT / "src" / "font_data.c").write_text("\n".join(lines) + "\n", encoding="utf-8")
     nbytes = len(cps) * (2 + 1 + 2 * height)

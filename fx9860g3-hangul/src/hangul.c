@@ -1,7 +1,5 @@
 #include "hangul.h"
 
-int hg_white = 0;
-
 /* Decode one UTF-8 code point and advance *s. Invalid bytes give U+FFFD. */
 static uint32_t decode(const char **s)
 {
@@ -54,11 +52,60 @@ static void draw_glyph(int x, int y, int idx)
     }
 }
 
+
+#define TINY_ADV 4
+
+static void draw_tiny(int x, int y, int ch)
+{
+    if(ch < 0x20 || ch > 0x7E) return;
+    if(ch >= 'a' && ch <= 'z') ch -= 32;
+    const uint8_t *g = hg_tiny[ch - 0x20];
+    for(int r = 0; r < 5; r++)
+        for(int c = 0; c < 3; c++)
+            if(g[r] & (4 >> c)) hg_plot(x + c, y + r);
+}
+
+/* If *s is `_{...}` or `^{...}`, return 1 and set *end past the '}' and *n to
+   the number of characters inside; else return 0. */
+static int tiny_group(const char *s, const char **end, int *n)
+{
+    if((s[0] != '_' && s[0] != '^') || s[1] != '{') return 0;
+    const char *p = s + 2;
+    int count = 0;
+    while(*p && *p != '}' && *p != '\n' && *p != '\f') {
+        decode(&p);
+        count++;
+    }
+    if(*p != '}') return 0;
+    *end = p + 1;
+    *n = count;
+    return 1;
+}
+
 int hg_draw_text(int x, int y, int width, int line_gap, const char *s)
 {
     int cx = 0;
 
     while(*s && *s != '\f') {
+        const char *end;
+        int n;
+        if(tiny_group(s, &end, &n)) {
+            int sup = (s[0] == '^');
+            int w = n * TINY_ADV;
+            if(cx + w > width && cx > 0) {
+                cx = 0;
+                y += hg_height + line_gap;
+            }
+            const char *p = s + 2;
+            for(int i = 0; i < n; i++) {
+                uint32_t c = decode(&p);
+                draw_tiny(x + cx, y + (sup ? 0 : hg_height - 5), c < 0x80 ? (int)c : '?');
+                cx += TINY_ADV;
+            }
+            s = end;
+            continue;
+        }
+
         uint32_t cp = decode(&s);
 
         if(cp == '\n') {

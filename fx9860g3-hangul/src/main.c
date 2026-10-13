@@ -6,10 +6,10 @@
 void hg_plot(int x, int y)
 {
     if(x >= 0 && x < 128 && y >= 0 && y < 64)
-        dpixel(x, y, hg_white ? C_WHITE : C_BLACK);
+        dpixel(x, y, C_BLACK);
 }
 
-/* One list screen. `names(i)` gives row text; the selected row is inverted. */
+/* One list screen. `names(i)` gives row text; the selected row gets a '>' marker. */
 static void draw_list(int count, int sel, int top, const char *(*names)(int),
                       int (*counts)(int))
 {
@@ -18,12 +18,10 @@ static void draw_list(int count, int sel, int top, const char *(*names)(int),
     dclear(C_WHITE);
     for(int r = 0; r < rows && top + r < count; r++) {
         int i = top + r, y = r * hg_height;
-        hg_white = (i == sel);
-        if(hg_white) drect(0, y, 127, y + hg_height - 1, C_BLACK);
-        hg_draw_text(1, y, 1000, 0, names(i));
-        if(counts) dprint(116, y + (hg_height - 8) / 2 + 1, hg_white ? C_WHITE : C_BLACK, "%d", counts(i));
+        if(i == sel) hg_draw_text(0, y, 1000, 0, ">");
+        hg_draw_text(8, y, 1000, 0, names(i));
+        if(counts) dprint(116, y + (hg_height - 8) / 2 + 1, C_BLACK, "%d", counts(i));
     }
-    hg_white = 0;
     dupdate();
 }
 
