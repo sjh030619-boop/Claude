@@ -1,16 +1,16 @@
 # fx-9860G III 한글 뷰어 (add-in)
 
-계산기 화면에 한글을 보여주는 fxSDK/gint add-in 입니다. Galmuri(9px 한글 픽셀폰트, SIL OFL)를
-비트맵으로 내장해서 128×64 화면에 **12글자 × 5줄** 정도를 표시합니다.
+계산기 화면에 한글을 보여주는 fxSDK/gint add-in 입니다. Galmuri(기본 7px 한글 픽셀폰트, SIL OFL)를
+비트맵으로 내장해서 128×64 화면에 **16글자 × 6줄** 정도를 표시합니다.
 
 ## 쓰는 법
 1. `pages.txt` 에 보고 싶은 글을 UTF-8 로 작성합니다 (페이지 구분: `---` 한 줄).
 2. 폰트/페이지 데이터 생성:
    ```
-   python3 tools/build_assets.py              # KS X 1001 전체(2350자) 포함, 약 70 KB
+   python3 tools/build_assets.py              # 기본 7px, KS X 1001 전체(2350자) 포함, 약 58 KB
    python3 tools/build_assets.py --only-used  # pages.txt 에 쓴 글자만, 훨씬 작음
    python3 tools/build_assets.py --font 11    # 11px 폰트 (10글자 × 5줄, 더 읽기 쉬움)
-   python3 tools/build_assets.py --font 7     # 7px 폰트 (16글자 × 6줄, 작고 빽빽함)
+   python3 tools/build_assets.py --font 9     # 9px 폰트 (12글자 × 5줄)
    ```
 3. 빌드 ([fxSDK](https://gitea.planet-casio.fr/Lephenixnoir/fxsdk) 필요):
    ```

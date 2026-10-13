@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate src/font_data.c and src/pages.c for the Hangul add-in.
 
-  python3 tools/build_assets.py                 # Galmuri9, KS X 1001 + used chars
+  python3 tools/build_assets.py                 # Galmuri7, KS X 1001 + used chars
   python3 tools/build_assets.py --font 11       # bigger font (11px Hangul)
   python3 tools/build_assets.py --only-used     # smallest: only chars in pages.txt
 
@@ -129,7 +129,7 @@ def build_pages():
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--font", type=int, choices=(7, 9, 11), default=9)
+    ap.add_argument("--font", type=int, choices=(7, 9, 11), default=7)
     ap.add_argument("--only-used", action="store_true",
                     help="only include glyphs that appear in pages.txt (smallest)")
     a = ap.parse_args()
