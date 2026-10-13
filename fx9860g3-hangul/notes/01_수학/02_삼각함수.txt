@@ -1,0 +1,4 @@
+[삼각함수 기본]
+sin²x+cos²x=1
+tanx = sinx/cosx
+1+tan²x = sec²x

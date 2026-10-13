@@ -6,7 +6,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 d, out = Path(sys.argv[1]), sys.argv[2]
-files = sorted(d.glob("page*.pbm"))
+files = sorted(d.glob("*.pbm"))
 S = 5  # pixel size
 BG, FG, GRID = (172, 190, 160), (28, 36, 30), (160, 178, 148)
 panels = []

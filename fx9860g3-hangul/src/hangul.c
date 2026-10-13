@@ -1,5 +1,7 @@
 #include "hangul.h"
 
+int hg_white = 0;
+
 /* Decode one UTF-8 code point and advance *s. Invalid bytes give U+FFFD. */
 static uint32_t decode(const char **s)
 {
@@ -56,7 +58,7 @@ int hg_draw_text(int x, int y, int width, int line_gap, const char *s)
 {
     int cx = 0;
 
-    while(*s) {
+    while(*s && *s != '\f') {
         uint32_t cp = decode(&s);
 
         if(cp == '\n') {
@@ -79,4 +81,19 @@ int hg_draw_text(int x, int y, int width, int line_gap, const char *s)
         cx += adv;
     }
     return y + hg_height;
+}
+
+int hg_page_count(const char *text)
+{
+    int n = 1;
+    for(; *text; text++) if(*text == '\f') n++;
+    return n;
+}
+
+const char *hg_page(const char *text, int n)
+{
+    while(n > 0 && *text) {
+        if(*text++ == '\f') n--;
+    }
+    return text;
 }

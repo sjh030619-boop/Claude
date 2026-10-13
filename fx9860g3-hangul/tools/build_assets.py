@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Generate src/font_data.c and src/pages.c for the Hangul add-in.
+"""Generate src/font_data.c and src/notes.c for the Hangul add-in.
 
   python3 tools/build_assets.py                 # Galmuri7, KS X 1001 + used chars
   python3 tools/build_assets.py --font 11       # bigger font (11px Hangul)
   python3 tools/build_assets.py --only-used     # smallest: only chars in pages.txt
 
 Font: Galmuri (SIL OFL 1.1), BDF bitmap fonts in fonts/.
-Text: pages.txt (UTF-8), pages separated by a line containing only '---'.
+Text: notes/<folder>/<file>.txt (UTF-8); inside a file, pages are separated by a
+line containing only '---'. Leading numbers in names (01_) only set the order.
 """
 import argparse
 import re
@@ -17,9 +18,9 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def ksx1001_chars():
-    """KS X 1001 Hangul syllables (2350) + general symbols + compat Jamo."""
+    """KS X 1001 Hangul syllables (2350) + symbols + compat Jamo + Greek."""
     out = set()
-    ranges = [(0xB0, 0xC8), (0xA1, 0xA1), (0xA4, 0xA4)]
+    ranges = [(0xB0, 0xC8), (0xA1, 0xA2), (0xA4, 0xA5)]
     for lead, last in ranges:
         for hi in range(lead, last + 1):
             for lo in range(0xA1, 0xFF):
@@ -103,37 +104,78 @@ def build_font(size, used, only_used):
     print(f"font: Galmuri{size}, {len(cps)} glyphs, cell height {height}px, ~{nbytes/1024:.1f} KB")
 
 
-def c_escape(s):
-    out = []
-    for line in s.split("\n"):
-        e = line.replace("\\", "\\\\").replace('"', '\\"')
-        out.append(f'    "{e}\\n"')
-    return "\n".join(out)
+def display_name(stem):
+    """'01_근의공식' -> '근의공식' (leading number only controls ordering)."""
+    return re.sub(r"^\d+[_.\- ]+", "", stem) or stem
 
 
-def build_pages():
-    src = (ROOT / "pages.txt").read_text(encoding="utf-8").replace("\r\n", "\n")
-    pages = [p.strip("\n") for p in re.split(r"^---[ \t]*$", src, flags=re.M)]
-    pages = [p for p in pages if p.strip()]
-    lines = ["/* Generated from pages.txt by tools/build_assets.py -- do not edit. */",
-             '#include "hangul.h"', "", "const char *const hg_pages[] = {"]
-    for p in pages:
-        body = c_escape(p)
-        body = body[:-3] + '"' if body.endswith('\\n"') else body  # drop trailing \n
-        lines.append(body + ",")
-    lines += ["};", f"const int hg_page_count = {len(pages)};"]
-    (ROOT / "src" / "pages.c").write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"pages: {len(pages)} page(s)")
-    return {ord(ch) for p in pages for ch in p}
+def c_str(s):
+    return s.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def c_text(pages):
+    """C literal for a file: pages joined by form feed."""
+    parts = []
+    for i, p in enumerate(pages):
+        if i:
+            parts.append('    "\\f"')
+        lines = p.split("\n")
+        for j, line in enumerate(lines):
+            nl = "\\n" if j < len(lines) - 1 else ""
+            parts.append(f'    "{c_str(line)}{nl}"')
+    return "\n".join(parts) if parts else '    ""'
+
+
+def build_notes():
+    nd = ROOT / "notes"
+    if not nd.is_dir():
+        sys.exit("notes/ directory not found (notes/<folder>/<file>.txt)")
+    folders = []
+    for d in sorted(p for p in nd.iterdir() if p.is_dir()):
+        files = sorted(d.glob("*.txt"))
+        if files:
+            folders.append((display_name(d.name), files))
+    root_files = sorted(nd.glob("*.txt"))
+    if root_files:
+        folders.append(("기타", root_files))
+    if not folders:
+        sys.exit("no .txt files under notes/")
+
+    used = set()
+    lines = ["/* Generated from notes/ by tools/build_assets.py -- do not edit. */",
+             '#include "hangul.h"', ""]
+    nfiles = npages = 0
+    for fi, (fname, files) in enumerate(folders):
+        used |= {ord(c) for c in fname}
+        lines.append(f"static const hg_file folder{fi}[] = {{")
+        for f in files:
+            title = display_name(f.stem)
+            src = f.read_text(encoding="utf-8").replace("\r\n", "\n")
+            pages = [p.strip("\n") for p in re.split(r"^---[ \t]*$", src, flags=re.M)]
+            pages = [p for p in pages if p.strip()]
+            used |= {ord(c) for c in title} | {ord(c) for p in pages for c in p}
+            lines.append(f'  {{ "{c_str(title)}",')
+            lines.append(c_text(pages) + " },")
+            nfiles += 1
+            npages += len(pages)
+        lines.append("};")
+    lines.append("")
+    lines.append("const hg_folder hg_folders[] = {")
+    for fi, (fname, files) in enumerate(folders):
+        lines.append(f'  {{ "{c_str(fname)}", folder{fi}, {len(files)} }},')
+    lines += ["};", f"const int hg_folder_count = {len(folders)};"]
+    (ROOT / "src" / "notes.c").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"notes: {len(folders)} folder(s), {nfiles} file(s), {npages} page(s)")
+    return used
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--font", type=int, choices=(7, 9, 11), default=7)
     ap.add_argument("--only-used", action="store_true",
-                    help="only include glyphs that appear in pages.txt (smallest)")
+                    help="only include glyphs that appear in notes/ (smallest)")
     a = ap.parse_args()
-    used = build_pages()
+    used = build_notes()
     build_font(a.font, used, a.only_used)
 
 

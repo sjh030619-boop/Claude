@@ -11,7 +11,7 @@ set(SOURCES
   src/main.c
   src/hangul.c
   src/font_data.c
-  src/pages.c
+  src/notes.c
 )
 
 add_executable(hangul ${SOURCES})
