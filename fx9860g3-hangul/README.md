@@ -10,6 +10,7 @@
    python3 tools/build_assets.py              # KS X 1001 전체(2350자) 포함, 약 70 KB
    python3 tools/build_assets.py --only-used  # pages.txt 에 쓴 글자만, 훨씬 작음
    python3 tools/build_assets.py --font 11    # 11px 폰트 (10글자 × 5줄, 더 읽기 쉬움)
+   python3 tools/build_assets.py --font 7     # 7px 폰트 (16글자 × 6줄, 작고 빽빽함)
    ```
 3. 빌드 ([fxSDK](https://gitea.planet-casio.fr/Lephenixnoir/fxsdk) 필요):
    ```

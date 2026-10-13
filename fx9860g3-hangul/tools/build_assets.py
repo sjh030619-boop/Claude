@@ -129,7 +129,7 @@ def build_pages():
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--font", type=int, choices=(9, 11), default=9)
+    ap.add_argument("--font", type=int, choices=(7, 9, 11), default=9)
     ap.add_argument("--only-used", action="store_true",
                     help="only include glyphs that appear in pages.txt (smallest)")
     a = ap.parse_args()
