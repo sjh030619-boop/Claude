@@ -8,19 +8,10 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - run: |
-          sudo apt-get install -y dnsutils >/dev/null 2>&1 || true
-          echo "== redirect chain of planet-casio.fr"
-          curl -sSIL -m 20 https://planet-casio.fr/ 2>&1 | grep -i -E "^(HTTP|location)" || true
-          for h in gitea.planet-casio.com git.planet-casio.com forge.planet-casio.com gitea.planet-casio.fr; do
-            echo "== $h"
-            getent ahosts "$h" | head -2 || echo "no dns"
-            dig +short "$h" A "$h" AAAA 2>/dev/null | head -3
-            curl -sS -m 15 -o /dev/null -w "https %{http_code}\n" "https://$h/" 2>&1 | tail -1
-          done
           for h in gitea.planet-casio.com git.planet-casio.com; do
-            echo "== repo probe on $h"
-            curl -sS -m 20 -o /dev/null -w "GiteaPC %{http_code}\n" "https://$h/Lephenixnoir/GiteaPC" || true
-            curl -sS -m 20 -o /dev/null -w "fxsdk %{http_code}\n" "https://$h/Lephenixnoir/fxsdk" || true
+            echo "== redirects for $h"
+            curl -sSIL -m 25 "https://$h/Lephenixnoir/GiteaPC" 2>&1 | grep -i -E "^(HTTP|location|curl)" || true
+            echo "== clone via $h"
+            GIT_TERMINAL_PROMPT=0 timeout 60 git clone --depth 1 "https://$h/Lephenixnoir/GiteaPC.git" "/tmp/gpc-$h" 2>&1 | tail -3 || true
+            ls "/tmp/gpc-$h" 2>/dev/null | head -20
           done
-          echo "== planet-casio.com links mentioning git"
-          curl -sSL -m 20 https://www.planet-casio.com/Fr/ 2>/dev/null | grep -o -i -E 'https?://[a-z0-9.-]*(gitea|git)[a-z0-9./_-]*' | sort -u | head
