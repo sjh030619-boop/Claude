@@ -15,7 +15,7 @@
    python3 tools/build_assets.py --font 11    # 11px 폰트 (10글자 × 5줄, 더 읽기 쉬움)
    python3 tools/build_assets.py --font 9     # 9px 폰트 (12글자 × 5줄)
    ```
-3. 빌드 ([fxSDK](https://gitea.planet-casio.fr/Lephenixnoir/fxsdk) 필요):
+3. 빌드 ([fxSDK](https://git.planet-casio.com/Lephenixnoir/fxsdk) 필요):
    ```
    fxsdk build-fx
    ```

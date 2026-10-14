@@ -3,12 +3,11 @@ name: Build Hangul.g1a
 # Builds fx9860g3-hangul into dist/Hangul.g1a (download it from the run's Artifacts).
 # The first run compiles the SH cross compiler + fxSDK + gint (30-60+ min); the result
 # is cached in ~/.local, so later runs only take a minute or two.
+# NOTE: as of 2026-10 the fxSDK Gitea host (git.planet-casio.com) does not accept
+# connections from GitHub's runners (timeouts), so this build cannot succeed there.
+# Manual trigger only, kept for the day it works (or for a self-hosted runner).
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'fx9860g3-hangul/**'
-      - '.github/workflows/build-g1a.yml'
 
 jobs:
   build:
@@ -49,8 +48,9 @@ jobs:
         if: steps.tc.outputs.cache-hit != 'true'
         run: |
           export PATH="$HOME/.local/bin:$PATH"
+          git config --global url."https://git.planet-casio.com/".insteadOf "https://gitea.planet-casio.fr/"
           for i in 1 2 3 4 5; do
-            git clone --depth 1 https://gitea.planet-casio.fr/Lephenixnoir/GiteaPC.git /tmp/GiteaPC && break
+            git clone --depth 1 https://git.planet-casio.com/Lephenixnoir/GiteaPC.git /tmp/GiteaPC && break
             echo "clone failed (attempt $i), retrying in 30s"; sleep 30
           done
           test -d /tmp/GiteaPC
