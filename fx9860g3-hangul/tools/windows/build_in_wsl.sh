@@ -37,8 +37,17 @@ python3 tools/build_assets.py
 fxsdk build-fx
 
 echo "== [5/5] copy result"
+G1A="$(find "$WORK" -name '*.g1a' -print -quit)"
+if [ -z "$G1A" ]; then
+  echo "fxsdk build-fx left no .g1a; converting the ELF by hand"
+  mkdir -p dist
+  sh-elf-objcopy -O binary -R .bss -R .gint_bss build-fx/hangul build-fx/hangul.bin
+  fxgxa --g1a build-fx/hangul.bin -n Hangul -i assets-fx/icon.png -o dist/Hangul.g1a
+  G1A="$WORK/dist/Hangul.g1a"
+fi
+echo "found: $G1A"
 mkdir -p "$SRC/dist"
-cp -v dist/Hangul.g1a "$SRC/dist/Hangul.g1a"
+cp -v "$G1A" "$SRC/dist/Hangul.g1a"
 if command -v explorer.exe >/dev/null 2>&1; then
   explorer.exe "$(wslpath -w "$SRC/dist")" || true
 fi
