@@ -10,7 +10,7 @@ echo "== [1/5] system packages"
 sudo apt-get update
 sudo apt-get install -y build-essential cmake git python3 python3-pip python3-pil pkg-config \
   rsync texinfo bison flex libgmp-dev libmpfr-dev libmpc-dev libisl-dev libpng-dev \
-  libusb-1.0-0-dev libudev-dev libsdl2-dev libncurses-dev libfreetype-dev libssl-dev
+  libusb-1.0-0-dev libudev-dev libsdl2-dev libncurses-dev libfreetype-dev libssl-dev libudisks2-dev libglib2.0-dev
 
 # The Gitea host moved from gitea.planet-casio.fr to git.planet-casio.com.
 git config --global url."https://git.planet-casio.com/".insteadOf "https://gitea.planet-casio.fr/"
