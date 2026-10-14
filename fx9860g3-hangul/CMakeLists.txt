@@ -11,6 +11,7 @@ set(SOURCES
   src/main.c
   src/hangul.c
   src/fakecalc.c
+  src/fakecalc_data.c
   src/font_data.c
   src/notes.c
 )

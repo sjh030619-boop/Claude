@@ -1,8 +1,11 @@
 #ifndef FAKECALC_H
 #define FAKECALC_H
 
-/* Draw a picture of an idle Run-Mat screen (history lines, input cursor and the
-   JUMP/DEL/▶MAT/MATH function menu). Calls dclear but not dupdate. */
+/* 128x64 bitmap of an idle Run-Mat screen (src/fakecalc_data.c, made from a real
+   screenshot by tools/make_fakecalc.py). 1 = black. */
+extern const unsigned char fakecalc_bits[64][16];
+
+/* Draw it (dclear + pixels, no dupdate). */
 void fakecalc_draw(void);
 
 #endif
