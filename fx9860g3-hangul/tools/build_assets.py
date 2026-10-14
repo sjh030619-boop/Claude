@@ -213,6 +213,9 @@ def build_notes():
             src = f.read_text(encoding="utf-8").replace("\r\n", "\n")
             pages = [p.strip("\n") for p in re.split(r"^---[ \t]*$", src, flags=re.M)]
             pages = [p for p in pages if p.strip()]
+            if len(pages) > 9:
+                print(f"warning: {f} has {len(pages)} pages; keep files to 9 pages or fewer "
+                      f"(page-number keys jump 1-9 directly)", file=sys.stderr)
             used |= {ord(c) for c in title} | {ord(c) for p in pages for c in p}
             lines.append(f'  {{ "{c_str(title)}",')
             lines.append(c_text(pages) + f", {name_num(f.stem)} }},")

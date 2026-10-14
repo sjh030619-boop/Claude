@@ -1,6 +1,7 @@
 #include <gint/display.h>
 #include <gint/keyboard.h>
 
+#include "fakecalc.h"
 #include "hangul.h"
 
 #define MAX_DEPTH 6   /* nested jumps (links / F2) */
@@ -111,22 +112,11 @@ static int pick(const list_t *l, int *sel, int *top)
 
 /* ---- fake calculator screen ----------------------------------------------- */
 
-/* Looks like an idle Run-Mat screen (status bar + empty input line). It is only a
-   picture: every key except 0 is ignored, 0 returns to the page. */
+/* A picture of an idle Run-Mat screen. Every key except 0 is ignored; 0 returns. */
 static void fake_calc(void)
 {
-    dclear(C_WHITE);
-    hg_draw_text(1, 0, 1000, 0, "Math Deg Norm1 d/c Real");
-    dline(0, 10, 127, 10, C_BLACK);
-    /* battery icon */
-    drect(115, 2, 125, 7, C_BLACK);
-    drect(116, 3, 124, 6, C_WHITE);
-    drect(116, 3, 122, 6, C_BLACK);
-    drect(126, 4, 127, 5, C_BLACK);
-    /* input cursor */
-    drect(2, 13, 3, 21, C_BLACK);
+    fakecalc_draw();
     dupdate();
-
     while(getkey().key != KEY_0) {}
 }
 

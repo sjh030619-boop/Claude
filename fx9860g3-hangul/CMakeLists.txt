@@ -10,6 +10,7 @@ find_package(Gint 2.1 REQUIRED)
 set(SOURCES
   src/main.c
   src/hangul.c
+  src/fakecalc.c
   src/font_data.c
   src/notes.c
 )
