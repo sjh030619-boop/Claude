@@ -153,6 +153,12 @@ def display_name(stem):
     return re.sub(r"^\d+[_.\- ]+", "", stem) or stem
 
 
+def name_num(stem):
+    """'01_근의공식' -> 1; no numeric prefix -> -1."""
+    m = re.match(r"^(\d+)[_.\- ]+", stem)
+    return int(m.group(1)) if m else -1
+
+
 def c_str(s):
     return s.replace("\\", "\\\\").replace('"', '\\"')
 
@@ -170,6 +176,14 @@ def c_text(pages):
     return "\n".join(parts) if parts else '    ""'
 
 
+def check_dups(nums, what):
+    seen = set()
+    for n in nums:
+        if n >= 0 and n in seen:
+            print(f"warning: duplicate number {n:02d} among {what}s (number jump / links will hit the first)", file=sys.stderr)
+        seen.add(n)
+
+
 def build_notes():
     nd = ROOT / "notes"
     if not nd.is_dir():
@@ -178,10 +192,10 @@ def build_notes():
     for d in sorted(p for p in nd.iterdir() if p.is_dir()):
         files = sorted(d.glob("*.txt"))
         if files:
-            folders.append((display_name(d.name), files))
+            folders.append((display_name(d.name), name_num(d.name), files))
     root_files = sorted(nd.glob("*.txt"))
     if root_files:
-        folders.append(("기타", root_files))
+        folders.append(("기타", -1, root_files))
     if not folders:
         sys.exit("no .txt files under notes/")
 
@@ -189,8 +203,10 @@ def build_notes():
     lines = ["/* Generated from notes/ by tools/build_assets.py -- do not edit. */",
              '#include "hangul.h"', ""]
     nfiles = npages = 0
-    for fi, (fname, files) in enumerate(folders):
+    check_dups([n for _, n, _ in folders], 'folder')
+    for fi, (fname, fnum, files) in enumerate(folders):
         used |= {ord(c) for c in fname}
+        check_dups([name_num(f.stem) for f in files], f'file in {fname}')
         lines.append(f"static const hg_file folder{fi}[] = {{")
         for f in files:
             title = display_name(f.stem)
@@ -199,14 +215,14 @@ def build_notes():
             pages = [p for p in pages if p.strip()]
             used |= {ord(c) for c in title} | {ord(c) for p in pages for c in p}
             lines.append(f'  {{ "{c_str(title)}",')
-            lines.append(c_text(pages) + " },")
+            lines.append(c_text(pages) + f", {name_num(f.stem)} }},")
             nfiles += 1
             npages += len(pages)
         lines.append("};")
     lines.append("")
     lines.append("const hg_folder hg_folders[] = {")
-    for fi, (fname, files) in enumerate(folders):
-        lines.append(f'  {{ "{c_str(fname)}", folder{fi}, {len(files)} }},')
+    for fi, (fname, fnum, files) in enumerate(folders):
+        lines.append(f'  {{ "{c_str(fname)}", folder{fi}, {len(files)}, {fnum} }},')
     lines += ["};", f"const int hg_folder_count = {len(folders)};"]
     (ROOT / "src" / "notes.c").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"notes: {len(folders)} folder(s), {nfiles} file(s), {npages} page(s)")

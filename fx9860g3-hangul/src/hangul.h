@@ -15,12 +15,14 @@ extern const uint8_t hg_tiny[95][5];  /* 3x5 glyphs, ASCII 0x20..0x7E */
 typedef struct {
     const char *name;
     const char *text;
+    int num;                 /* number prefix of the file name (01_ -> 1), or -1 */
 } hg_file;
 
 typedef struct {
     const char *name;
     const hg_file *files;
     int count;
+    int num;                 /* number prefix of the folder name, or -1 */
 } hg_folder;
 
 extern const hg_folder hg_folders[];
@@ -30,6 +32,16 @@ extern const int hg_folder_count;
 int hg_page_count(const char *text);
 /* Start of page n (0-based) within a file text. */
 const char *hg_page(const char *text, int n);
+
+/* Width in pixels of a single line of text. */
+int hg_text_width(const char *utf8);
+
+/* Links inside a page: "→F/N" or "→F/N:P" (folder number, file number, optional
+   1-based page). `line` = 0-based line index (count of '\n' before it). */
+typedef struct {
+    int line, folder, file, page;
+} hg_link;
+int hg_links(const char *page_text, hg_link *out, int max);
 
 /* Provided by the host program: set one black pixel. Must clip. */
 void hg_plot(int x, int y);

@@ -1,5 +1,5 @@
-/* Host-side check of the font + browser layout: renders the folder list, a file
-   list and the first page of every file into 128x64 PBMs (no calculator needed).
+/* Host-side check of the font: renders every page of every file into 128x64 PBMs.
+   (For the browser UI / navigation use tools/sim/sim.c.)
      gcc -Isrc tools/host_test.c src/hangul.c src/font_data.c src/notes.c -o host_test
      ./host_test <outdir>        # then: python3 tools/preview.py <outdir> out.png */
 #include <stdio.h>
@@ -27,30 +27,11 @@ static void save(const char *dir, const char *name)
     fclose(f);
 }
 
-static void list(int n, int sel, const char *(*name)(int))
-{
-    clear();
-    for(int i = 0; i < n && (i + 1) * hg_height <= 64; i++) {
-        int y = i * hg_height;
-        if(i == sel) hg_draw_text(0, y, 1000, 0, ">");
-        hg_draw_text(8, y, 1000, 0, name(i));
-    }
-}
-
-static int cf;
-static const char *fol(int i) { return hg_folders[i].name; }
-static const char *fil(int i) { return hg_folders[cf].files[i].name; }
-
 int main(int argc, char **argv)
 {
     const char *dir = argc > 1 ? argv[1] : ".";
     char name[64];
 
-    list(hg_folder_count, 1, fol);
-    save(dir, "a_folders");
-    cf = 0;
-    list(hg_folders[0].count, 0, fil);
-    save(dir, "b_files");
     for(int f = 0; f < hg_folder_count; f++)
         for(int i = 0; i < hg_folders[f].count; i++) {
             const char *text = hg_folders[f].files[i].text;

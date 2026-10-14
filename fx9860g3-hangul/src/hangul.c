@@ -144,3 +144,51 @@ const char *hg_page(const char *text, int n)
     }
     return text;
 }
+
+int hg_text_width(const char *s)
+{
+    int w = 0;
+    while(*s && *s != '\n' && *s != '\f') {
+        int idx = glyph_index(decode(&s));
+        if(idx >= 0) w += hg_adv[idx];
+    }
+    return w;
+}
+
+static int read_int(const char **p, int *out)
+{
+    if(**p < '0' || **p > '9') return 0;
+    int v = 0;
+    while(**p >= '0' && **p <= '9') v = v * 10 + (*(*p)++ - '0');
+    *out = v;
+    return 1;
+}
+
+int hg_links(const char *s, hg_link *out, int max)
+{
+    int n = 0, line = 0;
+
+    while(*s && *s != '\f') {
+        if(*s == '\n') { line++; s++; continue; }
+        /* U+2192 RIGHTWARDS ARROW = E2 86 92 */
+        if((uint8_t)s[0] == 0xE2 && (uint8_t)s[1] == 0x86 && (uint8_t)s[2] == 0x92) {
+            const char *p = s + 3;
+            int f, fi, pg = 1;
+            if(read_int(&p, &f) && *p == '/') {
+                p++;
+                if(read_int(&p, &fi)) {
+                    if(*p == ':') { const char *q = p + 1; if(read_int(&q, &pg)) p = q; }
+                    if(n < max) {
+                        out[n].line = line; out[n].folder = f;
+                        out[n].file = fi;  out[n].page = pg;
+                        n++;
+                    }
+                    s = p;
+                    continue;
+                }
+            }
+        }
+        s++;
+    }
+    return n;
+}
