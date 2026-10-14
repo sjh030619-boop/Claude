@@ -1,0 +1,23 @@
+name: Net diag (temporary)
+on:
+  push:
+    paths:
+      - '.github/workflows/net-diag.yml'
+jobs:
+  diag:
+    runs-on: ubuntu-22.04
+    steps:
+      - run: |
+          sudo apt-get install -y dnsutils >/dev/null 2>&1 || true
+          echo "== redirect chain of planet-casio.fr"
+          curl -sSIL -m 20 https://planet-casio.fr/ 2>&1 | grep -i -E "^(HTTP|location)" || true
+          for h in gitea.planet-casio.fr git.planet-casio.fr forge.planet-casio.fr code.planet-casio.fr www.planet-casio.fr; do
+            echo "== $h"
+            getent ahosts "$h" | head -2 || echo "no dns"
+            dig +short "$h" A "$h" AAAA 2>/dev/null | head -3
+            curl -sS -m 15 -o /dev/null -w "https %{http_code}\n" "https://$h/" 2>&1 | tail -1
+          done
+          echo "== github mirrors"
+          for r in Lephenixnoir/fxsdk Lephenixnoir/gint Lephenixnoir/GiteaPC Lephenixnoir/sh-elf-gcc Lephenixnoir/OpenLibm; do
+            printf "%s: " "$r"; curl -sS -m 15 -o /dev/null -w "%{http_code}\n" "https://github.com/$r"
+          done
