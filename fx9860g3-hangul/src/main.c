@@ -109,6 +109,27 @@ static int pick(const list_t *l, int *sel, int *top)
     }
 }
 
+/* ---- fake calculator screen ----------------------------------------------- */
+
+/* Looks like an idle Run-Mat screen (status bar + empty input line). It is only a
+   picture: every key except 0 is ignored, 0 returns to the page. */
+static void fake_calc(void)
+{
+    dclear(C_WHITE);
+    hg_draw_text(1, 0, 1000, 0, "Math Deg Norm1 d/c Real");
+    dline(0, 10, 127, 10, C_BLACK);
+    /* battery icon */
+    drect(115, 2, 125, 7, C_BLACK);
+    drect(116, 3, 124, 6, C_WHITE);
+    drect(116, 3, 122, 6, C_BLACK);
+    drect(126, 4, 127, 5, C_BLACK);
+    /* input cursor */
+    drect(2, 13, 3, 21, C_BLACK);
+    dupdate();
+
+    while(getkey().key != KEY_0) {}
+}
+
 /* ---- viewer / browser (mutually recursive for links and the index) -------- */
 
 static int depth;
@@ -125,6 +146,7 @@ static void view(const hg_file *f, int page)
 {
     int pages = hg_page_count(f->text);
     int scroll = 0, footer = 0, link_mode = 0, link_sel = 0;
+    int pending = -1;   /* first digit of a possible two-digit page number */
     hg_link links[MAX_LINKS];
     int nlinks;
 
@@ -162,6 +184,23 @@ static void view(const hg_file *f, int page)
             else if(key == KEY_EXIT || key == KEY_LEFT || key == KEY_RIGHT) link_mode = 0;
             continue;
         }
+
+        int d = digit_of(key);
+        if(d >= 0) {
+            if(pending >= 0) {
+                int val = pending * 10 + d;   /* 10..99 (valid: set only if 10*pending <= pages) */
+                pending = -1;
+                if(val <= pages) { page = val - 1; scroll = 0; }
+            }
+            else if(d == 0) fake_calc();
+            else if(d <= pages) {
+                page = d - 1;
+                scroll = 0;
+                if(d * 10 <= pages) pending = d;   /* a two-digit page could follow */
+            }
+            continue;
+        }
+        pending = -1;
 
         if(key == KEY_EXIT) break;
         else if(key == KEY_F1) footer = !footer;
