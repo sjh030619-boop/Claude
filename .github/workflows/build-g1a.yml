@@ -1,0 +1,58 @@
+name: Build Hangul.g1a
+
+# Builds fx9860g3-hangul into dist/Hangul.g1a (download it from the run's Artifacts).
+# The first run compiles the SH cross compiler + fxSDK + gint (30-60+ min); the result
+# is cached in ~/.local, so later runs only take a minute or two.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'fx9860g3-hangul/**'
+      - '.github/workflows/build-g1a.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: System packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake git python3 python3-pip pkg-config \
+            texinfo bison flex libgmp-dev libmpfr-dev libmpc-dev libisl-dev libpng-dev \
+            libusb-1.0-0-dev libudev-dev libsdl2-dev libncurses-dev libfreetype-dev \
+            libssl-dev
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Restore toolchain cache
+        id: tc
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local
+            ~/.giteapc
+          key: fxsdk-toolchain-ubuntu2204-v1
+
+      - name: Build toolchain (first run only)
+        if: steps.tc.outputs.cache-hit != 'true'
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          git clone --depth 1 https://gitea.planet-casio.fr/Lephenixnoir/GiteaPC.git /tmp/GiteaPC
+          cd /tmp/GiteaPC && make install
+          giteapc --version || true
+          giteapc install -y Lephenixnoir/sh-elf-gcc
+          giteapc install -y Lephenixnoir/fxsdk Lephenixnoir/OpenLibm Lephenixnoir/gint
+
+      - name: Generate assets and build
+        working-directory: fx9860g3-hangul
+        run: |
+          python3 tools/build_assets.py
+          fxsdk build-fx
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Hangul-g1a
+          path: fx9860g3-hangul/dist/Hangul.g1a
+          if-no-files-found: error
