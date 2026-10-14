@@ -24,6 +24,14 @@
 fxSDK CMake 템플릿이 버전에 따라 다르면 `fxsdk new hangul` 로 새 프로젝트를 만들고 `src/*`,
 `assets-fx/icon.png` 와 `pages.txt`, `tools/` 만 옮겨서 `CMakeLists.txt` 의 SOURCES 를 맞춰주세요.
 
+## Windows 에서 한 번에 빌드 (WSL2)
+```
+powershell -ExecutionPolicy Bypass -File tools\windows\build_windows.ps1
+```
+WSL2(Ubuntu) 가 없으면 안내가 나옵니다(`wsl --install -d Ubuntu` 후 재부팅). 처음에는 툴체인 빌드에
+30~60분 이상 걸리고, 끝나면 `dist\Hangul.g1a` 가 생기며 탐색기가 열립니다.
+(fxSDK 서버는 git.planet-casio.com 입니다. 실제 PC 에서는 아직 검증하지 못했습니다.)
+
 ## 번호 점프 / 색인 링크
 - **번호 점프**: 폴더·파일 이름 앞의 숫자(`01_`)가 목록에 `01` 처럼 보입니다. 목록에서 숫자키를
   **두 자리로** 누르면(예: `0` `2`) 그 번호 항목으로 바로 갑니다. EXE 로 엽니다.
