@@ -1,27 +1,28 @@
-# One-shot build on Windows via WSL2 (Ubuntu). Run from PowerShell:
+﻿# One-shot build on Windows via WSL2 (Ubuntu). Run from PowerShell:
 #   powershell -ExecutionPolicy Bypass -File tools\windows\build_windows.ps1
 # Result: dist\Hangul.g1a (in this project folder). Untested on a real PC -- see README.
 $ErrorActionPreference = "Stop"
 
 if (-not (Get-Command wsl -ErrorAction SilentlyContinue)) {
-    Write-Host "WSL이 없습니다. 관리자 PowerShell에서 'wsl --install -d Ubuntu' 실행 후 재부팅하고 다시 실행하세요."
+    Write-Host "WSL not found. Run in an ADMIN PowerShell:  wsl --install -d Ubuntu   then reboot and run this script again."
     exit 1
 }
 $distros = ((wsl -l -q) -join "`n") -replace "`0", ""
 if ($distros -notmatch "Ubuntu") {
-    Write-Host "Ubuntu 배포판이 없습니다. 관리자 PowerShell에서 'wsl --install -d Ubuntu' 실행 후 재부팅하고 다시 실행하세요."
+    Write-Host "No Ubuntu distro in WSL. Installed distros: $($distros.Trim())"
+    Write-Host "Run in an ADMIN PowerShell:  wsl --install -d Ubuntu   then reboot, create the Ubuntu user, and run this script again."
     exit 1
 }
 
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $wslRoot = (wsl -d Ubuntu wslpath -a "$root").Trim()
-Write-Host "프로젝트: $root"
-Write-Host "WSL 경로: $wslRoot"
-Write-Host "처음 실행이면 비밀번호(sudo)를 물어보고, 툴체인 빌드에 30~60분 이상 걸립니다. 창을 닫지 마세요."
+Write-Host "Project : $root"
+Write-Host "WSL path: $wslRoot"
+Write-Host "First run: asks for your Ubuntu (sudo) password and builds the toolchain (30-60+ min). Do not close this window."
 
 wsl -d Ubuntu bash "$wslRoot/tools/windows/build_in_wsl.sh" "$wslRoot"
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "빌드 실패 (코드 $LASTEXITCODE). 위 메시지를 그대로 복사해서 알려 주세요."
+    Write-Host "Build failed (exit code $LASTEXITCODE). Copy the messages above and send them back."
     exit $LASTEXITCODE
 }
-Write-Host "완료: $root\dist\Hangul.g1a"
+Write-Host "DONE: $root\dist\Hangul.g1a"
