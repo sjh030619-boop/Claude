@@ -35,11 +35,25 @@ jobs:
             ~/.giteapc
           key: fxsdk-toolchain-ubuntu2204-v1
 
+      - name: Network diagnostics
+        if: steps.tc.outputs.cache-hit != 'true'
+        continue-on-error: true
+        run: |
+          for h in gitea.planet-casio.fr planet-casio.fr github.com; do
+            echo "== $h"; getent hosts "$h" || echo "dns: no result"
+            curl -sS -m 15 -o /dev/null -w "http %{http_code}\n" "https://$h/" || true
+          done
+          cat /etc/resolv.conf
+
       - name: Build toolchain (first run only)
         if: steps.tc.outputs.cache-hit != 'true'
         run: |
           export PATH="$HOME/.local/bin:$PATH"
-          git clone --depth 1 https://gitea.planet-casio.fr/Lephenixnoir/GiteaPC.git /tmp/GiteaPC
+          for i in 1 2 3 4 5; do
+            git clone --depth 1 https://gitea.planet-casio.fr/Lephenixnoir/GiteaPC.git /tmp/GiteaPC && break
+            echo "clone failed (attempt $i), retrying in 30s"; sleep 30
+          done
+          test -d /tmp/GiteaPC
           cd /tmp/GiteaPC && make install
           giteapc --version || true
           giteapc install -y Lephenixnoir/sh-elf-gcc
