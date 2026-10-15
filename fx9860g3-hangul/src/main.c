@@ -6,6 +6,7 @@
 
 #define MAX_DEPTH 6   /* nested jumps (links / F2) */
 #define MAX_LINKS 8
+#define MARK_W 6      /* gutter for the ">" marker on pages that contain links */
 
 void hg_plot(int x, int y)
 {
@@ -76,11 +77,12 @@ static void draw_list(const list_t *l, int sel, int top)
     dupdate();
 }
 
-enum { PICK_BACK, PICK_OPEN, PICK_INDEX };
+enum { PICK_BACK, PICK_OPEN, PICK_INDEX, PICK_HOME };
 
 /* Number keys jump to the item with that number prefix (two digits in a row make
-   a two-digit number). Returns on EXIT / EXE / F2. */
-static int pick(const list_t *l, int *sel, int *top)
+   a two-digit number). Returns on EXIT or DEL (back), EXE (open), F2 (index), AC (home).
+   At the top level DEL is ignored, so only EXIT can leave the add-in. */
+static int pick(const list_t *l, int *sel, int *top, int top_level)
 {
     int rows = 64 / hg_height;
     int pending = -1;   /* first digit typed, waiting for an optional second */
@@ -103,6 +105,8 @@ static int pick(const list_t *l, int *sel, int *top)
         pending = -1;
 
         if(key == KEY_EXIT) return PICK_BACK;
+        if(key == KEY_DEL && !top_level) return PICK_BACK;
+        if(key == KEY_ACON) return PICK_HOME;
         if(key == KEY_EXE) return PICK_OPEN;
         if(key == KEY_F2) return PICK_INDEX;
         if(key == KEY_DOWN && *sel < l->count - 1) (*sel)++;
@@ -123,6 +127,7 @@ static void fake_calc(void)
 /* ---- viewer / browser (mutually recursive for links and the index) -------- */
 
 static int depth;
+static int go_home;   /* set by AC: every level returns until the top-level list */
 
 static void browse_files(int folder);
 
@@ -132,28 +137,28 @@ static void open_index(void)
     if(f >= 0 && depth < MAX_DEPTH) browse_files(f);
 }
 
+/* A page with links is a menu: ">" marks the selected link line, UP/DOWN move
+   between link lines, EXE follows the link. Other pages scroll with UP/DOWN. */
 static void view(const hg_file *f, int page)
 {
     int pages = hg_page_count(f->text);
-    int scroll = 0, footer = 0, link_mode = 0, link_sel = 0;
+    int scroll = 0, footer = 0, link_sel = 0;
     int pending = -1;   /* first digit of a possible two-digit page number */
     hg_link links[MAX_LINKS];
-    int nlinks;
 
     if(page < 0 || page >= pages) page = 0;
     depth++;
 
     while(1) {
         const char *text = hg_page(f->text, page);
-        nlinks = hg_links(text, links, MAX_LINKS);
+        int nlinks = hg_links(text, links, MAX_LINKS);
+        int x0 = nlinks ? MARK_W : 0;
         if(link_sel >= nlinks) link_sel = 0;
 
         dclear(C_WHITE);
-        hg_draw_text(0, -scroll * hg_height, 128, 0, text);
-        if(link_mode && nlinks) {
-            int y = (links[link_sel].line - scroll) * hg_height + hg_height - 1;
-            dline(0, y, 127, y, C_BLACK);
-        }
+        hg_draw_text(x0, -scroll * hg_height, 128 - x0, 0, text);
+        if(nlinks)
+            hg_draw_text(0, (links[link_sel].line - scroll) * hg_height, 1000, 0, ">");
         if(footer) {
             drect(0, 56, 127, 63, C_WHITE);
             dprint(1, 57, C_BLACK, "%d/%d", page + 1, pages);
@@ -162,44 +167,46 @@ static void view(const hg_file *f, int page)
 
         int key = getkey().key;
 
-        if(link_mode) {
-            if(key == KEY_UP && link_sel > 0) link_sel--;
-            else if(key == KEY_DOWN && link_sel < nlinks - 1) link_sel++;
-            else if(key == KEY_EXE) {
-                int fo = find_folder(links[link_sel].folder);
-                int fi = fo >= 0 ? find_file(fo, links[link_sel].file) : -1;
-                if(fi >= 0 && depth < MAX_DEPTH)
-                    view(&hg_folders[fo].files[fi], links[link_sel].page - 1);
-            }
-            else if(key == KEY_EXIT || key == KEY_LEFT || key == KEY_RIGHT) link_mode = 0;
-            continue;
-        }
-
         int d = digit_of(key);
         if(d >= 0) {
             if(pending >= 0) {
                 int val = pending * 10 + d;   /* 10..99 (valid: set only if 10*pending <= pages) */
                 pending = -1;
-                if(val <= pages) { page = val - 1; scroll = 0; }
+                if(val <= pages) { page = val - 1; scroll = 0; link_sel = 0; }
             }
             else if(d == 0) fake_calc();
             else if(d <= pages) {
                 page = d - 1;
                 scroll = 0;
+                link_sel = 0;
                 if(d * 10 <= pages) pending = d;   /* a two-digit page could follow */
             }
             continue;
         }
         pending = -1;
 
-        if(key == KEY_EXIT) break;
+        if(key == KEY_EXIT || key == KEY_DEL) break;
+        else if(key == KEY_ACON) { go_home = 1; break; }
         else if(key == KEY_F1) footer = !footer;
-        else if(key == KEY_F2) open_index();
-        else if(key == KEY_EXE && nlinks) { link_mode = 1; link_sel = 0; }
-        else if(key == KEY_RIGHT && page < pages - 1) { page++; scroll = 0; }
-        else if(key == KEY_LEFT && page > 0) { page--; scroll = 0; }
-        else if(key == KEY_DOWN) scroll++;
-        else if(key == KEY_UP && scroll > 0) scroll--;
+        else if(key == KEY_F2) { open_index(); if(go_home) break; }
+        else if(key == KEY_EXE && nlinks) {
+            int fo = find_folder(links[link_sel].folder);
+            int fi = fo >= 0 ? find_file(fo, links[link_sel].file) : -1;
+            if(fi >= 0 && depth < MAX_DEPTH) {
+                view(&hg_folders[fo].files[fi], links[link_sel].page - 1);
+                if(go_home) break;
+            }
+        }
+        else if(key == KEY_RIGHT && page < pages - 1) { page++; scroll = 0; link_sel = 0; }
+        else if(key == KEY_LEFT && page > 0) { page--; scroll = 0; link_sel = 0; }
+        else if(key == KEY_DOWN) {
+            if(nlinks) { if(link_sel < nlinks - 1) link_sel++; }
+            else scroll++;
+        }
+        else if(key == KEY_UP) {
+            if(nlinks) { if(link_sel > 0) link_sel--; }
+            else if(scroll > 0) scroll--;
+        }
     }
     depth--;
 }
@@ -212,7 +219,10 @@ static void browse_files(int folder)
 
     cur_folder = folder;
     depth++;
-    while((r = pick(&l, &sel, &top)) != PICK_BACK) {
+    while(1) {
+        r = pick(&l, &sel, &top, 0);
+        if(r == PICK_BACK) break;
+        if(r == PICK_HOME) { go_home = 1; break; }
         if(r == PICK_INDEX) {
             int f = find_folder(0);
             if(f >= 0 && f != folder && depth < MAX_DEPTH) {
@@ -220,7 +230,10 @@ static void browse_files(int folder)
                 cur_folder = folder;   /* nested call changed it */
             }
         }
-        else view(&hg_folders[folder].files[sel], 0);
+        else {
+            view(&hg_folders[folder].files[sel], 0);
+        }
+        if(go_home) break;
     }
     depth--;
     cur_folder = saved;
@@ -231,9 +244,12 @@ int main(void)
     list_t l = { hg_folder_count, folder_name, folder_num, folder_count };
     int sel = 0, top = 0, r;
 
-    while((r = pick(&l, &sel, &top)) != PICK_BACK) {
+    while((r = pick(&l, &sel, &top, 1)) != PICK_BACK) {
+        go_home = 0;
+        if(r == PICK_HOME) continue;           /* already home */
         if(r == PICK_INDEX) open_index();
         else browse_files(sel);
+        go_home = 0;                           /* arrived home */
     }
     return 1;
 }

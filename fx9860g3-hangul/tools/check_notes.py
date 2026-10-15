@@ -5,7 +5,8 @@
   python3 tools/check_notes.py --font 9
 
 Checks (E = error, W = warning):
-  E  line wider than 128 px (real glyph advances from the bitmap font)
+  E  line wider than 128 px (122 px on pages that contain links: the add-in reserves a
+     6 px gutter for the '>' marker; real glyph advances from the bitmap font)
   E  more lines on a page than fit on screen (64 px / cell height = 6 for 7px)
   E  more than 9 pages in a file
   E  glyph missing from the font (would print '?')
@@ -23,6 +24,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SCREEN_W, SCREEN_H = 128, 64
 MAX_PAGES, MAX_LINKS, MAX_NAME = 9, 8, 14
+MARK_W = 6  # '>' gutter the add-in reserves on pages that contain links
 TINY_ADV = 4
 
 HEIGHT = {7: 10, 9: 12, 11: 14}  # cell height written by build_assets.py
@@ -125,10 +127,13 @@ def main():
                 if len(lines) > max_lines:
                     E(f"{where} 쪽{pi}: {len(lines)}줄 (최대 {max_lines}줄)")
                 missing = set()
+                has_link = bool(link_re.search(page))
+                limit = SCREEN_W - (MARK_W if has_link else 0)
                 for li, line in enumerate(lines, 1):
                     w = line_width(line, adv, missing)
-                    if w > SCREEN_W:
-                        E(f"{where} 쪽{pi} 줄{li}: 폭 {w}px > {SCREEN_W}px | {line}")
+                    if w > limit:
+                        note = " (링크가 있는 쪽은 선택 표시 칸 때문에 122)" if has_link else ""
+                        E(f"{where} 쪽{pi} 줄{li}: 폭 {w}px > {limit}px{note} | {line}")
                 if missing:
                     E(f"{where} 쪽{pi}: 폰트에 없는 글자 {''.join(sorted(missing))}")
                 if fnum != 0 and not (len(lines) > 1 and lines[1].startswith("이럴때:")):
