@@ -1,0 +1,6 @@
+BCE 미분 결과
+이럴때: dJ/dwj, h=sig(wx)
+dJ/dwj=(h-y)×xj (정답)
+유도: dL/dh=(h-y)/[h(1-h)]
+dh/dz=h(1-h), dz/dwj=xj
+주의: (y-h)xj 는 부호 반대 (오답)

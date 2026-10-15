@@ -1,0 +1,6 @@
+스케일링 5종 비교
+이럴때: 이상치 많음, Robust
+Robust: (x-중앙값)÷IQR
+Max-Abs: x÷최댓값 (희소)
+Min-Max: 이상치에 민감
+이상치 많으면 Robust 선택
