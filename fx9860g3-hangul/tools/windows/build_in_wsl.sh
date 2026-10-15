@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Runs inside WSL Ubuntu: installs fxSDK + gint (first time only) and builds Hangul.g1a.
+# (Must keep LF line endings: see .gitattributes.)
 set -eu   # no pipefail on purpose: `yes | giteapc ...` ends with SIGPIPE (141) once giteapc stops reading
 
 SRC="${1:?usage: build_in_wsl.sh <project dir> [--no-open]}"

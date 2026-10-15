@@ -1,0 +1,7 @@
+# The self-hosted Windows runner checks files out with CRLF; bash/python inside WSL need LF.
+*.sh  text eol=lf
+*.py  text eol=lf
+*.c   text eol=lf
+*.h   text eol=lf
+*.txt text eol=lf
+CMakeLists.txt text eol=lf
