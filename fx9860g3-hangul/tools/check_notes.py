@@ -8,7 +8,9 @@
 
 Checks (E = error, W = warning):
   E  line wider than 128 px (122 px on pages that contain links: the add-in reserves a
-     6 px gutter for the '>' marker; real glyph advances from the bitmap font)
+     6 px gutter for the '>' marker; real glyph advances from the bitmap font).
+     On a link line the "->F/N:P" token is hidden when the line has exactly one link and a title
+     in front of it (title not ending in ':'), so the width is measured without the token.
   E  more lines on a page than fit on screen (64 px / cell height = 6 for 7px)
   E  glyph missing from the font (would print '?')
   E  duplicate folder/file numbers; link to a folder/file/page that does not exist
@@ -94,6 +96,22 @@ def line_width(line, adv, missing):
     return w
 
 
+TOKEN_RE = re.compile(r"→\d+/\d+(?::\d+)?")
+
+
+def displayed_line(line):
+    """What the viewer draws: a line with exactly one link token and a title in front of it
+    (not a label ending in ':') shows the title only; the token is hidden."""
+    toks = list(TOKEN_RE.finditer(line))
+    if len(toks) != 1:
+        return line
+    t = toks[0]
+    title = line[:t.start()].rstrip(" \r")
+    if not title or title.endswith(":"):
+        return line
+    return title + line[t.end():].rstrip(" \r")
+
+
 def check(nd, font):
     adv = load_adv(font)
     max_lines = SCREEN_H // HEIGHT[font]
@@ -163,7 +181,7 @@ def check(nd, font):
                 has_link = bool(link_re.search(page))
                 limit = SCREEN_W - (MARK_W if has_link else 0)
                 for li, line in enumerate(lines, 1):
-                    w = line_width(line, adv, missing)
+                    w = line_width(displayed_line(line) if has_link else line, adv, missing)
                     if w > limit:
                         note = " (링크가 있는 쪽은 선택 표시 칸 때문에 122)" if has_link else ""
                         E(f"{where} 쪽{pi} 줄{li}: 폭 {w}px > {limit}px{note} | {line}")
@@ -174,7 +192,7 @@ def check(nd, font):
                     W(f"{where} 쪽{pi}: 쓰기로 한 범위 밖의 문자 {''.join(bad)}")
                 n_uncertain += sum(1 for l in lines if l.startswith("불확실:"))
                 n_outside += sum(1 for l in lines if l.startswith("교재밖:"))
-                if fnum != 0 and pi == 1 and not (len(lines) > 1 and lines[1].startswith("이럴때:")):
+                if fnum != 0 and "색인" not in fname and pi == 1 and not (len(lines) > 1 and lines[1].startswith("이럴때:")):
                     W(f"{where} 쪽1: 둘째 줄이 '이럴때:' 로 시작하지 않음")
                 links = link_re.findall(page)
                 if len(links) > MAX_LINKS:

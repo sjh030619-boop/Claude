@@ -31,6 +31,24 @@ static int find_file(int folder, int num)
     return -1;
 }
 
+/* index folders (hg_folder.idx 1 / 2) are opened by F2 / F3 */
+static int find_index(int k)
+{
+    for(int i = 0; i < hg_folder_count; i++)
+        if(hg_folders[i].idx == k) return i;
+    return -1;
+}
+
+/* which index (1 or 2) the document f is, or 0 */
+static int index_k_of(const hg_file *f)
+{
+    for(int k = 1; k <= 2; k++) {
+        int i = find_index(k);
+        if(i >= 0 && hg_folders[i].count == 1 && f == &hg_folders[i].files[0]) return k;
+    }
+    return 0;
+}
+
 static int digit_of(int key)
 {
     switch(key) {
@@ -79,10 +97,10 @@ static void draw_list(const list_t *l, int sel, int top)
     dupdate();
 }
 
-enum { PICK_BACK, PICK_OPEN, PICK_INDEX, PICK_HOME };
+enum { PICK_BACK, PICK_OPEN, PICK_INDEX1, PICK_INDEX2, PICK_HOME };
 
 /* Number keys jump to the item with that number prefix (two digits in a row make
-   a two-digit number). Returns on EXIT or DEL (back), EXE (open), F2 (index), AC (home).
+   a two-digit number). Returns on EXIT or DEL (back), EXE (open), F2 / F3 (index 1 / 2), AC (home).
    At the top level DEL is ignored, so only EXIT can leave the add-in. */
 static int pick(const list_t *l, int *sel, int *top, int top_level)
 {
@@ -110,7 +128,8 @@ static int pick(const list_t *l, int *sel, int *top, int top_level)
         if(key == KEY_DEL && !top_level) return PICK_BACK;
         if(key == KEY_ACON) return PICK_HOME;
         if(key == KEY_EXE) return PICK_OPEN;
-        if(key == KEY_F2) return PICK_INDEX;
+        if(key == KEY_F2) return PICK_INDEX1;
+        if(key == KEY_F3) return PICK_INDEX2;
         if(key == KEY_DOWN && *sel < l->count - 1) (*sel)++;
         else if(key == KEY_UP && *sel > 0) (*sel)--;
     }
@@ -134,35 +153,31 @@ static int go_home;   /* set by AC: every level returns until the top-level list
 static void browse_files(int folder);
 static void view(const hg_file *f, int page, int *last_page);
 
-/* The index (folder 00): if it is a single document, F2 opens it directly at the page where
-   you left it; inside the index F2 goes back to page 1 (the table of contents). */
-static const hg_file *index_file;   /* set while the index document is on screen */
-static int index_page;
+/* An index folder holds a single merged document. F2 / F3 open it directly at the page where
+   you left it; inside that index the same key goes back to page 1 (the table of contents). */
+static int index_page[3];
 
-static void open_index(void)
+static void open_index(int k)
 {
-    int f = find_folder(0);
+    int f = find_index(k);
     if(f < 0 || depth >= MAX_DEPTH) return;
-    if(index_file) return;   /* already inside the index: handled by view() */
-    if(hg_folders[f].count == 1) view(&hg_folders[f].files[0], index_page, &index_page);
+    if(hg_folders[f].count == 1) view(&hg_folders[f].files[0], index_page[k], &index_page[k]);
     else browse_files(f);
 }
 
-/* A page with links is a menu: ">" marks the selected link line, UP/DOWN move
-   between link lines, EXE follows the link. Other pages scroll with UP/DOWN. */
+/* A page with links is a menu: ">" marks the selected link line (the whole line is underlined
+   when it has one link; with several links on a line the selected token is underlined),
+   UP/DOWN move between links, EXE follows the link. Other pages scroll with UP/DOWN. */
 static void view(const hg_file *f, int page, int *last_page)
 {
     int pages = hg_page_count(f->text);
-    const hg_file *saved_index = index_file;
-    int is_index = (find_folder(0) >= 0 && hg_folders[find_folder(0)].count == 1 &&
-                    f == &hg_folders[find_folder(0)].files[0]);
+    int ik = index_k_of(f);
     int scroll = 0, footer = 0, link_sel = 0;
     int pending = -1;   /* first digit of a possible two-digit page number */
     hg_link links[MAX_LINKS];
 
     if(page < 0 || page >= pages) page = 0;
     depth++;
-    if(is_index) index_file = f;
 
     while(1) {
         const char *text = hg_page(f->text, page);
@@ -171,13 +186,13 @@ static void view(const hg_file *f, int page, int *last_page)
         if(link_sel >= nlinks) link_sel = 0;
 
         dclear(C_WHITE);
-        hg_draw_text(x0, -scroll * hg_height, 128 - x0, 0, text);
+        hg_draw_text_links(x0, -scroll * hg_height, 128 - x0, 0, text, links, nlinks);
         if(nlinks) {
             int ly = (links[link_sel].line - scroll) * hg_height;
             hg_draw_text(0, ly, 1000, 0, ">");
             /* several links can share a line: underline the selected one */
-            int ux = x0 + links[link_sel].x, uy = ly + hg_height - 1;
-            dline(ux, uy, ux + links[link_sel].w - 1, uy, C_BLACK);
+            int ux = x0 + links[link_sel].ux, uy = ly + hg_height - 1;
+            if(links[link_sel].uw > 0) dline(ux, uy, ux + links[link_sel].uw - 1, uy, C_BLACK);
         }
         /* "page/total" in the top-right corner, only if the first line leaves room for it */
         if(scroll == 0) {
@@ -192,7 +207,10 @@ static void view(const hg_file *f, int page, int *last_page)
             while(k) buf[n++] = tmp[--k];
             buf[n] = 0;
             int w = n * 4;
-            if(x0 + hg_text_width(text) + 3 + w <= 128) hg_tiny_text(128 - w, 0, buf);
+            int w0 = hg_text_width(text);   /* first line as drawn (hidden tokens left out) */
+            for(int i = 0; i < nlinks; i++)
+                if(links[i].line == 0) { w0 = links[i].lw; break; }
+            if(x0 + w0 + 3 + w <= 128) hg_tiny_text(128 - w, 0, buf);
         }
         if(footer) {
             drect(0, 56, 127, 63, C_WHITE);
@@ -223,9 +241,10 @@ static void view(const hg_file *f, int page, int *last_page)
         if(key == KEY_EXIT || key == KEY_DEL) break;
         else if(key == KEY_ACON) { go_home = 1; break; }
         else if(key == KEY_F1) footer = !footer;
-        else if(key == KEY_F2) {
-            if(is_index) { page = 0; scroll = 0; link_sel = 0; }   /* back to the table of contents */
-            else { open_index(); if(go_home) break; }
+        else if(key == KEY_F2 || key == KEY_F3) {
+            int k = (key == KEY_F2) ? 1 : 2;
+            if(ik == k) { page = 0; scroll = 0; link_sel = 0; }   /* back to the table of contents */
+            else { open_index(k); if(go_home) break; }
         }
         else if(key == KEY_EXE && nlinks) {
             int fo = find_folder(links[link_sel].folder);
@@ -248,7 +267,6 @@ static void view(const hg_file *f, int page, int *last_page)
     }
     depth--;
     if(last_page) *last_page = page;
-    index_file = saved_index;
 }
 
 static void browse_files(int folder)
@@ -263,11 +281,11 @@ static void browse_files(int folder)
         r = pick(&l, &sel, &top, 0);
         if(r == PICK_BACK) break;
         if(r == PICK_HOME) { go_home = 1; break; }
-        if(r == PICK_INDEX) {
-            int f = find_folder(0);
-            if(f >= 0 && f != folder && depth < MAX_DEPTH) {
-                browse_files(f);
-                cur_folder = folder;   /* nested call changed it */
+        if(r == PICK_INDEX1 || r == PICK_INDEX2) {
+            int k = (r == PICK_INDEX1) ? 1 : 2;
+            if(find_index(k) != folder) {
+                open_index(k);
+                cur_folder = folder;   /* a nested call may have changed it */
             }
         }
         else {
@@ -287,11 +305,12 @@ int main(void)
     while((r = pick(&l, &sel, &top, 1)) != PICK_BACK) {
         go_home = 0;
         if(r == PICK_HOME) continue;           /* already home */
-        if(r == PICK_INDEX) open_index();
+        if(r == PICK_INDEX1) open_index(1);
+        else if(r == PICK_INDEX2) open_index(2);
         else if(hg_folders[sel].count == 1) {
-            /* a folder with one document opens it directly (the index uses its own page memory) */
-            int is_idx = (hg_folders[sel].num == 0);
-            view(&hg_folders[sel].files[0], is_idx ? index_page : 0, is_idx ? &index_page : NULL);
+            /* a folder with one document opens it directly (an index uses its own page memory) */
+            int ik = hg_folders[sel].idx;
+            view(&hg_folders[sel].files[0], ik ? index_page[ik] : 0, ik ? &index_page[ik] : NULL);
         }
         else browse_files(sel);
         go_home = 0;                           /* arrived home */

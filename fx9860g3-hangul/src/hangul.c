@@ -89,13 +89,17 @@ static int tiny_group(const char *s, const char **end, int *n)
     return 1;
 }
 
-int hg_draw_text(int x, int y, int width, int line_gap, const char *s)
+static int draw_impl(int x, int y, int width, int line_gap, const char *s,
+                     const hg_link *links, int nlinks)
 {
     int cx = 0;
 
     while(*s && *s != '\f') {
         const char *end;
         int n;
+        for(int i = 0; i < nlinks; i++)
+            if(links[i].hide && s == links[i].ts) { s = links[i].te; break; }
+        if(!*s || *s == '\f') break;
         if(tiny_group(s, &end, &n)) {
             int sup = (s[0] == '^');
             int w = n * TINY_ADV;
@@ -137,6 +141,17 @@ int hg_draw_text(int x, int y, int width, int line_gap, const char *s)
     return y + hg_height;
 }
 
+int hg_draw_text(int x, int y, int width, int line_gap, const char *s)
+{
+    return draw_impl(x, y, width, line_gap, s, 0, 0);
+}
+
+int hg_draw_text_links(int x, int y, int width, int line_gap, const char *s,
+                       const hg_link *links, int nlinks)
+{
+    return draw_impl(x, y, width, line_gap, s, links, nlinks);
+}
+
 int hg_page_count(const char *text)
 {
     int n = 1;
@@ -171,24 +186,71 @@ static int read_int(const char **p, int *out)
     return 1;
 }
 
-/* Pixel width of the text in [a, b) (single line, no markup handling). */
-static int span_width(const char *a, const char *b)
+/* Pixel width of the text in [a, b) (single line); `_{..}` / `^{..}` count 4 px per character.
+   The range [skip_a, skip_b) is left out (a hidden link token). */
+static int span_width(const char *a, const char *b, const char *skip_a, const char *skip_b)
 {
     int w = 0;
     while(a < b) {
+        const char *end;
+        int n;
+        if(skip_a && a == skip_a) { a = skip_b; continue; }
+        if(tiny_group(a, &end, &n) && end <= b) { w += n * TINY_ADV; a = end; continue; }
         int idx = glyph_index(decode(&a));
         if(idx >= 0) w += hg_adv[idx];
     }
     return w;
 }
 
+static int is_space(char c) { return c == ' ' || c == '\r'; }
+
+/* Finish the links of one line: links[first..n) all sit on the line that starts at line_start
+   and ends at line_end (exclusive). A line with exactly one link is selected as a whole
+   (underline = the visible text of the line). If it has a title in front of the token
+   (and the title is not a label ending in ':'), the "->f/n:p" token is hidden. Lines with
+   several links keep per-token selection, with the token visible. */
+static void finish_line(hg_link *links, int first, int n, const char *line_start, const char *line_end)
+{
+    if(n == first) return;
+    if(n - first > 1) {
+        for(int i = first; i < n; i++) {
+            links[i].hide = 0;
+            links[i].ux = links[i].x; links[i].uw = links[i].w;
+            links[i].lw = span_width(line_start, line_end, 0, 0);
+        }
+        return;
+    }
+    hg_link *l = &links[first];
+    const char *pe = l->ts;                       /* end of the title in front of the token */
+    while(pe > line_start && is_space(pe[-1])) pe--;
+    int title = pe > line_start;
+    int label = title && pe[-1] == ':';
+    const char *le = line_end;                    /* line without trailing blanks */
+    while(le > l->te && is_space(le[-1])) le--;
+    l->hide = title && !label;
+    if(l->hide) {
+        l->lw = span_width(line_start, pe, 0, 0) + span_width(l->te, le, 0, 0);
+        if(le <= l->te) l->lw = span_width(line_start, pe, 0, 0);
+        l->ux = 0; l->uw = l->lw;
+    } else {
+        const char *e = le > l->te ? le : l->te;
+        l->lw = span_width(line_start, e, 0, 0);
+        l->ux = 0; l->uw = l->lw;
+    }
+}
+
 int hg_links(const char *s, hg_link *out, int max)
 {
-    int n = 0, line = 0;
+    int n = 0, line = 0, first = 0;
     const char *line_start = s;
 
-    while(*s && *s != '\f') {
-        if(*s == '\n') { line++; s++; line_start = s; continue; }
+    for(;;) {
+        if(*s == 0 || *s == '\f' || *s == '\n') {
+            finish_line(out, first, n, line_start, s);
+            if(*s != '\n') break;
+            line++; s++; line_start = s; first = n;
+            continue;
+        }
         /* U+2192 RIGHTWARDS ARROW = E2 86 92 */
         if((uint8_t)s[0] == 0xE2 && (uint8_t)s[1] == 0x86 && (uint8_t)s[2] == 0x92) {
             const char *p = s + 3;
@@ -200,8 +262,10 @@ int hg_links(const char *s, hg_link *out, int max)
                     if(n < max) {
                         out[n].line = line; out[n].folder = f;
                         out[n].file = fi;  out[n].page = pg;
-                        out[n].x = span_width(line_start, s);
-                        out[n].w = span_width(s, p);
+                        out[n].x = span_width(line_start, s, 0, 0);
+                        out[n].w = span_width(s, p, 0, 0);
+                        out[n].ts = s; out[n].te = p;
+                        out[n].hide = 0;
                         n++;
                     }
                     s = p;

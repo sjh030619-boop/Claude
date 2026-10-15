@@ -23,6 +23,7 @@ typedef struct {
     const hg_file *files;
     int count;
     int num;                 /* number prefix of the folder name, or -1 */
+    int idx;                 /* 0 = normal folder; 1, 2 = index folder opened by F2 / F3 */
 } hg_folder;
 
 extern const hg_folder hg_folders[];
@@ -40,9 +41,16 @@ int hg_text_width(const char *utf8);
    1-based page). `line` = 0-based line index (count of '\n' before it). */
 typedef struct {
     int line, folder, file, page;
-    int x, w;   /* pixel offset of the link text from the start of its line, and its width */
+    int x, w;           /* pixel offset of the "->F/N:P" token from the start of its line, and its width */
+    const char *ts, *te;/* the token itself in the page text: [ts, te) */
+    int hide;           /* 1: the token is not drawn (hg_draw_text_links skips it) */
+    int ux, uw;         /* selection underline of this link: offset from the line start and width */
+    int lw;             /* width of the visible line (token left out when hidden) */
 } hg_link;
 int hg_links(const char *page_text, hg_link *out, int max);
+/* Like hg_draw_text, but skips the tokens of links whose `hide` is set. */
+int hg_draw_text_links(int x, int y, int width, int line_gap, const char *utf8,
+                       const hg_link *links, int nlinks);
 
 /* ASCII text in the 3x5 font (4 px per character, lower case drawn as upper case).
    Returns the width in pixels. */

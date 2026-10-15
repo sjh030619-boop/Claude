@@ -270,6 +270,11 @@ def check_dups(nums, what):
         seen.add(n)
 
 
+def is_index_folder(fname, fnum):
+    """Folder 00 and any folder whose name contains "색인" is an index (merged into one document)."""
+    return fnum == 0 or "색인" in fname
+
+
 def build_notes(nd):
     if not nd.is_dir():
         sys.exit(f"{nd} not found (sets/<id>/notes/<folder>/<file>.txt)")
@@ -288,14 +293,20 @@ def build_notes(nd):
     lines = ["/* Generated from a note set by tools/build_assets.py -- do not edit. */",
              '#include "hangul.h"', ""]
     nfiles = npages = 0
-    index_info = ""
+    index_info = []
+    index_no = {}      # folder position -> 1 (F2) / 2 (F3)
+    for fi, (fname, fnum, files) in enumerate(folders):
+        if is_index_folder(fname, fnum) and len(index_no) < 2:
+            index_no[fi] = len(index_no) + 1
+        elif is_index_folder(fname, fnum):
+            print(f"warning: more than two index folders; '{fname}' is treated as a normal folder", file=sys.stderr)
     check_dups([n for _, n, _ in folders], 'folder')
     for fi, (fname, fnum, files) in enumerate(folders):
         used |= {ord(c) for c in fname}
         check_dups([name_num(f.stem) for f in files], f'file in {fname}')
         lines.append(f"static const hg_file folder{fi}[] = {{")
-        if fnum == 0:
-            # folder 00 = index: one continuous document (see merge_index)
+        if fi in index_no:
+            # an index folder: one continuous document (see merge_index)
             raw = []
             for f in files:
                 src = f.read_text(encoding="utf-8").replace("\r\n", "\n")
@@ -303,12 +314,12 @@ def build_notes(nd):
                 raw += [p for p in pg if p.strip()]
             pages = merge_index(raw)
             used |= {ord(c) for p in pages for c in p} | {ord(c) for c in "색인"}
-            lines.append('  { "색인",')
+            lines.append(f'  {{ "{c_str(fname)}",')
             lines.append(c_text(pages) + ", 1 },")
             nfiles += 1
             npages += len(pages)
             lines.append("};")
-            index_info = f"index: {len(files)} file(s), {len(raw)} page(s) -> 1 document, {len(pages)} page(s) incl. table of contents"
+            index_info.append(f"index F{index_no[fi] + 1} '{fname}': {len(files)} file(s), {len(raw)} page(s) -> 1 document, {len(pages)} page(s) incl. table of contents")
             continue
         for f in files:
             title = display_name(f.stem)
@@ -324,13 +335,13 @@ def build_notes(nd):
     lines.append("")
     lines.append("const hg_folder hg_folders[] = {")
     for fi, (fname, fnum, files) in enumerate(folders):
-        count = 1 if fnum == 0 else len(files)
-        lines.append(f'  {{ "{c_str(fname)}", folder{fi}, {count}, {fnum} }},')
+        count = 1 if fi in index_no else len(files)
+        lines.append(f'  {{ "{c_str(fname)}", folder{fi}, {count}, {fnum}, {index_no.get(fi, 0)} }},')
     lines += ["};", f"const int hg_folder_count = {len(folders)};"]
     (ROOT / "src" / "notes.c").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"notes: {len(folders)} folder(s), {nfiles} file(s), {npages} page(s)")
-    if index_info:
-        print(index_info)
+    for info in index_info:
+        print(info)
     return used
 
 

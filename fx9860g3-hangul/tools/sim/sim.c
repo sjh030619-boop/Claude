@@ -1,7 +1,7 @@
 /* Drive src/main.c with scripted keys; dump every frame to PBM.
      gcc -Isrc -Itools/sim -Dmain=app_main tools/sim/sim.c src/main.c src/hangul.c \
          src/font_data.c src/notes.c -o sim
-     ./sim outdir "EXE 1 2 EXE ..."          keys: EXIT EXE UP DOWN LEFT RIGHT F1 F2 0-9
+     ./sim outdir "EXE 1 2 EXE ..."          keys: EXIT EXE UP DOWN LEFT RIGHT F1 F2 F3 DEL AC 0-9
    Writes frame_000.pbm ... and prints a line per frame. Missing keys -> EXIT. */
 #include <stdarg.h>
 #include <stdio.h>
@@ -41,8 +41,8 @@ void dupdate(void) {
 
 static int code(const char *s) {
     static const char *n[] = {"", "EXIT", "EXE", "UP", "DOWN", "LEFT", "RIGHT", "F1", "F2",
-                              "DEL", "AC", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"};
-    for(int i = 1; i < 21; i++) if(!strcmp(s, n[i])) return i;
+                              "DEL", "AC", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "F3"};
+    for(int i = 1; i < 22; i++) if(!strcmp(s, n[i])) return i;
     fprintf(stderr, "bad key %s\n", s); exit(2);
 }
 

@@ -18,9 +18,9 @@ Builds CASIO fx-9860G III add-ins (`mlmid.g1a`, `HanProd.g1a`, ... one per subje
 
 - `sets/<id>/set.json` (`name` = add-in name, <= 8 ASCII chars) + `sets/<id>/notes/<NN_folder>/<NN_file>.txt` -
   exam notes of one subject; pages are split by a `---` line; names start with a two-digit number used for
-  number-key jumps. Folder `00_색인` is the index (F2 jumps to it). Links never cross sets.
+  number-key jumps. Index folders (`00`, or any folder whose name contains "색인"; at most two: F2 = first, F3 = second) are merged into one document each. Links never cross sets.
 - Links inside notes: `→folder/file` or `→folder/file:page`. Pages with links are menu pages
-  (UP/DOWN select, EXE follows; the selected link is underlined). Link pages must keep every line <= 122 px,
+  (UP/DOWN select, EXE follows). A line with exactly one link is selected as a whole line; if it has a title in front of the token (not a label ending in ':'), the `→f/n:p` token is not drawn, so link-line width is measured without it. Lines with several links keep visible tokens and per-token underline. Link pages must keep every line <= 122 px,
   other pages <= 128 px. Folder 00 (index) is merged at build time into one document with an auto table of
   contents and 초성 range titles (`merge_index` in tools/build_assets.py); F2 reopens it where you left it.
 - `src/` - add-in source (gint). `tools/sim/` - PC simulator (stub gint) used to test navigation:
