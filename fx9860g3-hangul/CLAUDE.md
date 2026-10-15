@@ -1,6 +1,6 @@
 # fx-9860G III Hangul notes add-in
 
-Builds CASIO fx-9860G III add-ins (`HanML.g1a`, `HanProd.g1a`, ... one per subject/note set) that show Korean notes.
+Builds CASIO fx-9860G III add-ins (`mlmid.g1a`, `HanProd.g1a`, ... one per subject/note set) that show Korean notes.
 
 ## Common tasks
 

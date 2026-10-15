@@ -7,8 +7,8 @@
 과목별로 **노트 세트**를 만들고, 세트마다 `.g1a` 를 하나씩 만듭니다. 계산기 메뉴에서 과목 앱을 골라 실행합니다.
 ```
 sets/
-  ml/                      ← 세트 id (아무 이름)
-    set.json               ← {"name": "HanML", "title": "머신러닝"}   name = 계산기 메뉴의 앱 이름(영문 8자 이하)
+  mlmid/                   ← 세트 id (아무 이름)
+    set.json               ← {"name": "mlmid", "title": "기계공학을위한인공지능"}   name = 계산기 메뉴의 앱 이름(영문 8자 이하)
     notes/<NN_폴더>/<NN_파일>.txt
   prod/
     set.json  notes/...
@@ -16,7 +16,7 @@ sets/
 1. 글은 `sets/<세트>/notes/<폴더>/<파일>.txt` (UTF-8) 로 둡니다. 계산기에서 폴더 → 파일 → 본문 순서로 열립니다.
    - 한 파일 안에서 `---` 한 줄이 페이지 구분입니다.
    - 이름 앞의 숫자(`01_`)는 정렬·번호 점프용이고, 폴더 `00` 은 색인입니다.
-   - 새 과목: `sets/<새id>/set.json` 과 `notes/` 를 만들면 됩니다. 출력 파일은 `<name>.g1a` (예: `HanML.g1a`).
+   - 새 과목: `sets/<새id>/set.json` 과 `notes/` 를 만들면 됩니다. 출력 파일은 `<name>.g1a` (예: `mlmid.g1a`).
 2. 노트 검사 / 데이터 생성 (세트 하나 기준):
    ```
    python3 tools/check_notes.py                    # 모든 세트 검사 (--set <id> 로 하나만)
@@ -50,7 +50,7 @@ sets/
 powershell -ExecutionPolicy Bypass -File tools\windows\build_windows.ps1
 ```
 WSL2(Ubuntu) 가 없으면 안내가 나옵니다(`wsl --install -d Ubuntu` 후 재부팅). 처음에는 툴체인 빌드에
-30~60분 이상 걸리고, 끝나면 `dist\` 에 세트마다 `.g1a` (예: `HanML.g1a`, `HanProd.g1a`) 가 생기며 탐색기가 열립니다.
+30~60분 이상 걸리고, 끝나면 `dist\` 에 세트마다 `.g1a` (예: `mlmid.g1a`, `HanProd.g1a`) 가 생기며 탐색기가 열립니다.
 (fxSDK 서버는 git.planet-casio.com 입니다. 실제 PC 에서는 아직 검증하지 못했습니다.)
 
 ## 번호 점프 / 색인 링크

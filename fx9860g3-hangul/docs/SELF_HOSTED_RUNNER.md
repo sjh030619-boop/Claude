@@ -35,7 +35,7 @@ GitHub 의 Actions 페이지에서 내려받을 수 있게 한다. (GitHub 의 �
 
 1. 노트/코드를 푸시한다(이 저장소의 `fx9860g3-hangul/` 아래가 바뀌면 자동으로 빌드가 시작된다).
 2. GitHub → **Actions** 탭 → "Build Hangul.g1a (self-hosted Windows PC)" 실행 → 초록 체크가 뜨면
-   맨 아래 **Artifacts → Hangul-g1a** 를 내려받는다(zip 안에 과목마다 `.g1a` 하나: 예 `HanML.g1a`, `HanProd.g1a`).
+   맨 아래 **Artifacts → Hangul-g1a** 를 내려받는다(zip 안에 과목마다 `.g1a` 하나: 예 `mlmid.g1a`, `HanProd.g1a`).
 3. 압축을 풀고 계산기(Mass Storage 모드)에 복사한다.
 
 첫 빌드는 도구 확인 때문에 조금 더 걸리고, 이후에는 몇 분이면 끝난다.

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Note sets: one add-in per subject.
 
-  sets/<id>/set.json      {"name": "HanML", "title": "머신러닝"}   name = add-in name (<= 8 ASCII chars)
+  sets/<id>/set.json      {"name": "mlmid", "title": "기계공학을위한인공지능"}   name = add-in name (<= 8 ASCII chars)
   sets/<id>/notes/<NN_folder>/<NN_file>.txt
 
   python3 tools/noteset.py list     # prints "<id><TAB><output .g1a name>" per set
