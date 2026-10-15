@@ -16,7 +16,10 @@ if ($distros -notmatch "Ubuntu") {
 }
 
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
-$wslRoot = (wsl -d Ubuntu wslpath -a "$root").Trim()
+# Convert C:\a\b -> /mnt/c/a/b ourselves: passing backslashes through wsl.exe to a shell loses them
+# when the path has no spaces (so "wsl wslpath" is not reliable).
+$drive = $root.Substring(0, 1).ToLower()
+$wslRoot = "/mnt/$drive/" + ($root.Substring(3) -replace '\\', '/')
 Write-Host "Project : $root"
 Write-Host "WSL path: $wslRoot"
 Write-Host "First run: asks for your Ubuntu (sudo) password and builds the toolchain (30-60+ min). Do not close this window."
