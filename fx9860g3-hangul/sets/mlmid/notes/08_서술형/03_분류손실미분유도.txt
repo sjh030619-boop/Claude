@@ -42,12 +42,9 @@ softmax CE 유도 2 (계속)
 → (-0.3,0.2,0.1)
 ---
 MSE 유도
-L=(yhat-y)², yhat=wx+b
-dL/dw=2(yhat-y)x,
-dL/db=2(yhat-y)
-n 개 평균 $dJ/dw={2;n}∑(yhat-y)x$
----
-MSE 유도 (계속)
+L=(ŷ-y)², ŷ=wx+b
+dL/dw=2(ŷ-y)x, dL/db=2(ŷ-y)
+n 개 평균 $dJ/dw={2;n}∑(ŷ-y)x$
 꼴: 예측-실제 곱하기 입력
 ---
 공통 결론
