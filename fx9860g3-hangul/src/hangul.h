@@ -40,8 +40,13 @@ int hg_text_width(const char *utf8);
    1-based page). `line` = 0-based line index (count of '\n' before it). */
 typedef struct {
     int line, folder, file, page;
+    int x, w;   /* pixel offset of the link text from the start of its line, and its width */
 } hg_link;
 int hg_links(const char *page_text, hg_link *out, int max);
+
+/* ASCII text in the 3x5 font (4 px per character, lower case drawn as upper case).
+   Returns the width in pixels. */
+int hg_tiny_text(int x, int y, const char *ascii);
 
 /* Provided by the host program: set one black pixel. Must clip. */
 void hg_plot(int x, int y);

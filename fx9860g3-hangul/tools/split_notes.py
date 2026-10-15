@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Split note files that have more than 9 pages into parts of at most 9 pages, and rewrite
+"""OPTIONAL tool (there is no page limit): split note files that have more than 9 pages into parts of at most 9 pages, and rewrite
 every link (->F/N or ->F/N:P) so it still points at the same page.
 
   python3 tools/split_notes.py --set prod            # dry run: prints the plan

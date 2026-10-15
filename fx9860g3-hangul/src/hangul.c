@@ -65,6 +65,13 @@ static void draw_tiny(int x, int y, int ch)
             if(g[r] & (4 >> c)) hg_plot(x + c, y + r);
 }
 
+int hg_tiny_text(int x, int y, const char *s)
+{
+    int w = 0;
+    for(; *s; s++, w += TINY_ADV) draw_tiny(x + w, y, (uint8_t)*s);
+    return w;
+}
+
 /* If *s is `_{...}` or `^{...}`, return 1 and set *end past the '}' and *n to
    the number of characters inside; else return 0. */
 static int tiny_group(const char *s, const char **end, int *n)
@@ -164,12 +171,24 @@ static int read_int(const char **p, int *out)
     return 1;
 }
 
+/* Pixel width of the text in [a, b) (single line, no markup handling). */
+static int span_width(const char *a, const char *b)
+{
+    int w = 0;
+    while(a < b) {
+        int idx = glyph_index(decode(&a));
+        if(idx >= 0) w += hg_adv[idx];
+    }
+    return w;
+}
+
 int hg_links(const char *s, hg_link *out, int max)
 {
     int n = 0, line = 0;
+    const char *line_start = s;
 
     while(*s && *s != '\f') {
-        if(*s == '\n') { line++; s++; continue; }
+        if(*s == '\n') { line++; s++; line_start = s; continue; }
         /* U+2192 RIGHTWARDS ARROW = E2 86 92 */
         if((uint8_t)s[0] == 0xE2 && (uint8_t)s[1] == 0x86 && (uint8_t)s[2] == 0x92) {
             const char *p = s + 3;
@@ -181,6 +200,8 @@ int hg_links(const char *s, hg_link *out, int max)
                     if(n < max) {
                         out[n].line = line; out[n].folder = f;
                         out[n].file = fi;  out[n].page = pg;
+                        out[n].x = span_width(line_start, s);
+                        out[n].w = span_width(s, p);
                         n++;
                     }
                     s = p;

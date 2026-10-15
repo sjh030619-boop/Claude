@@ -1,0 +1,45 @@
+[의사결정]
+이럴때:의사결정,절차 단계
+연관:→11/02 →11/04 →11/06
+3국면 10단계 번호 순서
+국면:문제분석 해결 평가
+유형:확실 위험 불확실 충돌
+---
+[의사결정 절차 답안 1/6]
+의사결정 절차는 3국면
+10단계이다(2장 2.5).
+I문제분석(problem analysis):
+①문제확인(problem
+identification)
+---
+[의사결정 절차 답안 2/6]
+②요인분석(factor analysis)
+③정보수집(information
+gathering).
+---
+[의사결정 절차 답안 3/6]
+II문제해결(problem-solving):
+④모델 구축(model building)
+⑤모델 검증(testing the
+model) ⑥결정 분석(decision
+analysis,최적해 탐색).
+---
+[의사결정 절차 답안 4/6]
+III평가(evaluation): ⑦예측
+분석(prediction analysis,
+민감도 분석)
+⑧실행(implementation) ⑨성과
+평가(신뢰성,유연성,안정성,적응성,
+---
+[의사결정 절차 답안 5/6]
+강건성,경제성) ⑩수정과
+재설계(modification and
+redesign).
+의사결정 상황:
+확실성(certainty,믿을 만한
+---
+[의사결정 절차 답안 6/6]
+정보),위험(risk,사건의 확률 앎),
+불확실성(uncertainty,확률 정보
+없음),충돌(conflict,경쟁자
+존재).

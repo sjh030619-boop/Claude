@@ -1,3 +1,5 @@
+#include <stddef.h>
+
 #include <gint/display.h>
 #include <gint/keyboard.h>
 
@@ -130,24 +132,37 @@ static int depth;
 static int go_home;   /* set by AC: every level returns until the top-level list */
 
 static void browse_files(int folder);
+static void view(const hg_file *f, int page, int *last_page);
+
+/* The index (folder 00): if it is a single document, F2 opens it directly at the page where
+   you left it; inside the index F2 goes back to page 1 (the table of contents). */
+static const hg_file *index_file;   /* set while the index document is on screen */
+static int index_page;
 
 static void open_index(void)
 {
     int f = find_folder(0);
-    if(f >= 0 && depth < MAX_DEPTH) browse_files(f);
+    if(f < 0 || depth >= MAX_DEPTH) return;
+    if(index_file) return;   /* already inside the index: handled by view() */
+    if(hg_folders[f].count == 1) view(&hg_folders[f].files[0], index_page, &index_page);
+    else browse_files(f);
 }
 
 /* A page with links is a menu: ">" marks the selected link line, UP/DOWN move
    between link lines, EXE follows the link. Other pages scroll with UP/DOWN. */
-static void view(const hg_file *f, int page)
+static void view(const hg_file *f, int page, int *last_page)
 {
     int pages = hg_page_count(f->text);
+    const hg_file *saved_index = index_file;
+    int is_index = (find_folder(0) >= 0 && hg_folders[find_folder(0)].count == 1 &&
+                    f == &hg_folders[find_folder(0)].files[0]);
     int scroll = 0, footer = 0, link_sel = 0;
     int pending = -1;   /* first digit of a possible two-digit page number */
     hg_link links[MAX_LINKS];
 
     if(page < 0 || page >= pages) page = 0;
     depth++;
+    if(is_index) index_file = f;
 
     while(1) {
         const char *text = hg_page(f->text, page);
@@ -157,8 +172,28 @@ static void view(const hg_file *f, int page)
 
         dclear(C_WHITE);
         hg_draw_text(x0, -scroll * hg_height, 128 - x0, 0, text);
-        if(nlinks)
-            hg_draw_text(0, (links[link_sel].line - scroll) * hg_height, 1000, 0, ">");
+        if(nlinks) {
+            int ly = (links[link_sel].line - scroll) * hg_height;
+            hg_draw_text(0, ly, 1000, 0, ">");
+            /* several links can share a line: underline the selected one */
+            int ux = x0 + links[link_sel].x, uy = ly + hg_height - 1;
+            dline(ux, uy, ux + links[link_sel].w - 1, uy, C_BLACK);
+        }
+        /* "page/total" in the top-right corner, only if the first line leaves room for it */
+        if(scroll == 0) {
+            char buf[16];
+            int n = 0, v;
+            /* tiny itoa: page/pages */
+            char tmp[8]; int k;
+            v = page + 1; k = 0; do { tmp[k++] = '0' + v % 10; v /= 10; } while(v);
+            while(k) buf[n++] = tmp[--k];
+            buf[n++] = '/';
+            v = pages; k = 0; do { tmp[k++] = '0' + v % 10; v /= 10; } while(v);
+            while(k) buf[n++] = tmp[--k];
+            buf[n] = 0;
+            int w = n * 4;
+            if(x0 + hg_text_width(text) + 3 + w <= 128) hg_tiny_text(128 - w, 0, buf);
+        }
         if(footer) {
             drect(0, 56, 127, 63, C_WHITE);
             dprint(1, 57, C_BLACK, "%d/%d", page + 1, pages);
@@ -188,12 +223,15 @@ static void view(const hg_file *f, int page)
         if(key == KEY_EXIT || key == KEY_DEL) break;
         else if(key == KEY_ACON) { go_home = 1; break; }
         else if(key == KEY_F1) footer = !footer;
-        else if(key == KEY_F2) { open_index(); if(go_home) break; }
+        else if(key == KEY_F2) {
+            if(is_index) { page = 0; scroll = 0; link_sel = 0; }   /* back to the table of contents */
+            else { open_index(); if(go_home) break; }
+        }
         else if(key == KEY_EXE && nlinks) {
             int fo = find_folder(links[link_sel].folder);
             int fi = fo >= 0 ? find_file(fo, links[link_sel].file) : -1;
             if(fi >= 0 && depth < MAX_DEPTH) {
-                view(&hg_folders[fo].files[fi], links[link_sel].page - 1);
+                view(&hg_folders[fo].files[fi], links[link_sel].page - 1, NULL);
                 if(go_home) break;
             }
         }
@@ -209,6 +247,8 @@ static void view(const hg_file *f, int page)
         }
     }
     depth--;
+    if(last_page) *last_page = page;
+    index_file = saved_index;
 }
 
 static void browse_files(int folder)
@@ -231,7 +271,7 @@ static void browse_files(int folder)
             }
         }
         else {
-            view(&hg_folders[folder].files[sel], 0);
+            view(&hg_folders[folder].files[sel], 0, NULL);
         }
         if(go_home) break;
     }
@@ -248,6 +288,11 @@ int main(void)
         go_home = 0;
         if(r == PICK_HOME) continue;           /* already home */
         if(r == PICK_INDEX) open_index();
+        else if(hg_folders[sel].count == 1) {
+            /* a folder with one document opens it directly (the index uses its own page memory) */
+            int is_idx = (hg_folders[sel].num == 0);
+            view(&hg_folders[sel].files[0], is_idx ? index_page : 0, is_idx ? &index_page : NULL);
+        }
         else browse_files(sel);
         go_home = 0;                           /* arrived home */
     }

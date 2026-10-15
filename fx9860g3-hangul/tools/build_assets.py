@@ -179,6 +179,84 @@ def c_text(pages):
     return "\n".join(parts) if parts else '    ""'
 
 
+# --- index (folder 00) -------------------------------------------------------------------
+JAMO_INITIALS = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ"
+JAMO_GROUP = {"ㄲ": "ㄱ", "ㄸ": "ㄷ", "ㅃ": "ㅂ", "ㅆ": "ㅅ", "ㅉ": "ㅈ"}
+ENTRY_RE = re.compile(r"^(.*?)\s*→\d+/\d+")
+
+
+def initial_group(ch):
+    """First character -> index group: 초성 for Hangul syllables, upper-case letter, '0-9', or '#'."""
+    if "가" <= ch <= "힣":
+        j = JAMO_INITIALS[(ord(ch) - 0xAC00) // 588]
+        return JAMO_GROUP.get(j, j)
+    if "ㄱ" <= ch <= "ㅎ":
+        return JAMO_GROUP.get(ch, ch)
+    if ch.isascii() and ch.isalpha():
+        return ch.upper()
+    if ch.isdigit():
+        return "0-9"
+    return "#"
+
+
+def entry_chars(page):
+    """First characters of the entry lines (lines with a link) of an index page."""
+    out = []
+    for line in page.split("\n")[1:]:
+        m = ENTRY_RE.match(line.strip())
+        if m and m.group(1).strip():
+            out.append(m.group(1).strip()[0])
+    return out
+
+
+def merge_index(pages):
+    """All pages of folder 00 -> one continuous document: a 초성 table of contents first, then every
+    index page with a title that shows which part of ㄱ~ㅎ / A~Z it covers."""
+    body = []
+    first_page_of = {}            # group -> index into body
+    for page in pages:
+        chars = entry_chars(page)
+        lines = page.split("\n")
+        if chars:
+            a, b = chars[0], chars[-1]
+            ga, gb = initial_group(a), initial_group(b)
+            title = f"색인 {ga} {a}~{b}" if ga == gb else f"색인 {ga}~{gb}"
+            lines[0] = title
+            for ch in chars:
+                first_page_of.setdefault(initial_group(ch), len(body))
+        body.append("\n".join(lines))
+
+    # table of contents: "ㄱ 3  ㄴ 9 ..." packed into lines of <= ~118 px (estimated advances)
+    def width(s):
+        return sum(8 if ord(c) > 0x2E80 else 3 if c == " " else 5 for c in s)
+
+    def toc_pages(offset):
+        tokens = [f"{g} {offset + i + 1}" for g, i in first_page_of.items()]
+        lines, cur = [], ""
+        for tok in tokens:
+            cand = tok if not cur else cur + "  " + tok
+            if width(cand) <= 118:
+                cur = cand
+            else:
+                lines.append(cur)
+                cur = tok
+        if cur:
+            lines.append(cur)
+        out = []
+        for i in range(0, len(lines), 5):
+            head = "색인 목차: 쪽번호 눌러 이동" if not out else "색인 목차 (계속)"
+            out.append("\n".join([head] + lines[i:i + 5]))
+        return out
+
+    offset = 0
+    for _ in range(4):            # page numbers depend on how many TOC pages there are
+        toc = toc_pages(offset)
+        if len(toc) == offset:
+            break
+        offset = len(toc)
+    return toc + body
+
+
 def check_dups(nums, what):
     seen = set()
     for n in nums:
@@ -205,19 +283,33 @@ def build_notes(nd):
     lines = ["/* Generated from a note set by tools/build_assets.py -- do not edit. */",
              '#include "hangul.h"', ""]
     nfiles = npages = 0
+    index_info = ""
     check_dups([n for _, n, _ in folders], 'folder')
     for fi, (fname, fnum, files) in enumerate(folders):
         used |= {ord(c) for c in fname}
         check_dups([name_num(f.stem) for f in files], f'file in {fname}')
         lines.append(f"static const hg_file folder{fi}[] = {{")
+        if fnum == 0:
+            # folder 00 = index: one continuous document (see merge_index)
+            raw = []
+            for f in files:
+                src = f.read_text(encoding="utf-8").replace("\r\n", "\n")
+                pg = [p.strip("\n") for p in re.split(r"^---[ \t]*$", src, flags=re.M)]
+                raw += [p for p in pg if p.strip()]
+            pages = merge_index(raw)
+            used |= {ord(c) for p in pages for c in p} | {ord(c) for c in "색인"}
+            lines.append('  { "색인",')
+            lines.append(c_text(pages) + ", 1 },")
+            nfiles += 1
+            npages += len(pages)
+            lines.append("};")
+            index_info = f"index: {len(files)} file(s), {len(raw)} page(s) -> 1 document, {len(pages)} page(s) incl. table of contents"
+            continue
         for f in files:
             title = display_name(f.stem)
             src = f.read_text(encoding="utf-8").replace("\r\n", "\n")
             pages = [p.strip("\n") for p in re.split(r"^---[ \t]*$", src, flags=re.M)]
             pages = [p for p in pages if p.strip()]
-            if len(pages) > 9:
-                print(f"warning: {f} has {len(pages)} pages; keep files to 9 pages or fewer "
-                      f"(page-number keys jump 1-9 directly)", file=sys.stderr)
             used |= {ord(c) for c in title} | {ord(c) for p in pages for c in p}
             lines.append(f'  {{ "{c_str(title)}",')
             lines.append(c_text(pages) + f", {name_num(f.stem)} }},")
@@ -227,10 +319,13 @@ def build_notes(nd):
     lines.append("")
     lines.append("const hg_folder hg_folders[] = {")
     for fi, (fname, fnum, files) in enumerate(folders):
-        lines.append(f'  {{ "{c_str(fname)}", folder{fi}, {len(files)}, {fnum} }},')
+        count = 1 if fnum == 0 else len(files)
+        lines.append(f'  {{ "{c_str(fname)}", folder{fi}, {count}, {fnum} }},')
     lines += ["};", f"const int hg_folder_count = {len(folders)};"]
     (ROOT / "src" / "notes.c").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"notes: {len(folders)} folder(s), {nfiles} file(s), {npages} page(s)")
+    if index_info:
+        print(index_info)
     return used
 
 

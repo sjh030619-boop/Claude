@@ -8,7 +8,7 @@ Builds CASIO fx-9860G III add-ins (`HanML.g1a`, `HanProd.g1a`, ... one per subje
   Output: `dist\<name>.g1a`, one per note set (`python3 tools/noteset.py list`). The toolchain (sh-elf-gcc, fxSDK, gint) is already installed in WSL after
   the first run, so later builds take a few minutes. On failure, show the last ~30 lines and the `[n/5]` step.
 - **Check notes before building**: `python3 tools/check_notes.py` (all sets; must report 0 errors).
-- **Split files longer than 9 pages**: `python3 tools/split_notes.py --set <id> [--write]` (also fixes links).
+- **Optional**: `python3 tools/split_notes.py --set <id> [--write]` splits long files (no page limit exists; also fixes links).
 - **Regenerate data for one set**: `python3 tools/build_assets.py --set <id>` (writes `src/font_data.c`, `src/notes.c`,
   `src/addin.cmake`; these are gitignored because they depend on the set).
 - **Deliver the result**: send the user the `dist\*.g1a` files; they copy it to the calculator in
@@ -20,7 +20,9 @@ Builds CASIO fx-9860G III add-ins (`HanML.g1a`, `HanProd.g1a`, ... one per subje
   exam notes of one subject; pages are split by a `---` line; names start with a two-digit number used for
   number-key jumps. Folder `00_색인` is the index (F2 jumps to it). Links never cross sets.
 - Links inside notes: `→folder/file` or `→folder/file:page`. Pages with links are menu pages
-  (UP/DOWN select, EXE follows). Link pages must keep every line <= 122 px, other pages <= 128 px.
+  (UP/DOWN select, EXE follows; the selected link is underlined). Link pages must keep every line <= 122 px,
+  other pages <= 128 px. Folder 00 (index) is merged at build time into one document with an auto table of
+  contents and 초성 range titles (`merge_index` in tools/build_assets.py); F2 reopens it where you left it.
 - `src/` - add-in source (gint). `tools/sim/` - PC simulator (stub gint) used to test navigation:
   see README ("PC 에서 동작 시뮬레이션").
 - `docs/PROMPT.md` - instructions for the Claude project that writes the notes.
@@ -28,5 +30,6 @@ Builds CASIO fx-9860G III add-ins (`HanML.g1a`, `HanProd.g1a`, ... one per subje
 ## Rules of thumb
 
 - Never edit `src/font_data.c`, `src/notes.c`, `src/addin.cmake`, `src/fakecalc_data.c` by hand (generated).
-- Screen is 128x64 px, 7px Korean bitmap font (Galmuri7): 6 lines per page, 9 pages max per file.
+- Screen is 128x64 px, 7px Korean bitmap font (Galmuri7): 6 lines per page; no page limit per file
+  (a `page/total` indicator is drawn top-right when the first line leaves room).
 - The git host for fxSDK moved to `git.planet-casio.com` (the old `gitea.planet-casio.fr` no longer resolves).

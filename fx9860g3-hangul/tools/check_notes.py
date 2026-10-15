@@ -9,11 +9,10 @@ Checks (E = error, W = warning):
   E  line wider than 128 px (122 px on pages that contain links: the add-in reserves a
      6 px gutter for the '>' marker; real glyph advances from the bitmap font)
   E  more lines on a page than fit on screen (64 px / cell height = 6 for 7px)
-  E  more than 9 pages in a file
   E  glyph missing from the font (would print '?')
   E  duplicate folder/file numbers; link to a folder/file/page that does not exist
   E  more than 8 links on one page
-  W  line 2 is not "이럴때: ..." (not required in the 00_ index folder)
+  W  first page of a file: line 2 is not "이럴때: ..." (not required in the 00_ index folder)
   W  folder/file name longer than 14 characters
 Exit status 1 if there is any E. Paste the output back to the chat that wrote the notes.
 """
@@ -119,8 +118,6 @@ def check(nd, font):
             where = f"{path.relative_to(ROOT)}"
             if len(title) > MAX_NAME:
                 W(f"{where}: 파일명이 {MAX_NAME}자 초과 ({len(title)}자)")
-            if len(pages) > MAX_PAGES:
-                E(f"{where}: {len(pages)}쪽 (최대 {MAX_PAGES}쪽) → 파일을 나누세요")
             for pi, page in enumerate(pages, 1):
                 lines = page.split("\n")
                 if len(lines) > max_lines:
@@ -135,8 +132,8 @@ def check(nd, font):
                         E(f"{where} 쪽{pi} 줄{li}: 폭 {w}px > {limit}px{note} | {line}")
                 if missing:
                     E(f"{where} 쪽{pi}: 폰트에 없는 글자 {''.join(sorted(missing))}")
-                if fnum != 0 and not (len(lines) > 1 and lines[1].startswith("이럴때:")):
-                    W(f"{where} 쪽{pi}: 둘째 줄이 '이럴때:' 로 시작하지 않음")
+                if fnum != 0 and pi == 1 and not (len(lines) > 1 and lines[1].startswith("이럴때:")):
+                    W(f"{where} 쪽1: 둘째 줄이 '이럴때:' 로 시작하지 않음")
                 links = link_re.findall(page)
                 if len(links) > MAX_LINKS:
                     E(f"{where} 쪽{pi}: 링크 {len(links)}개 (최대 {MAX_LINKS}개)")
