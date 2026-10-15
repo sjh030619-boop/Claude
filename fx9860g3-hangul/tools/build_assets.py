@@ -226,16 +226,16 @@ def merge_index(pages):
                 first_page_of.setdefault(initial_group(ch), len(body))
         body.append("\n".join(lines))
 
-    # table of contents: "ㄱ 3  ㄴ 9 ..." packed into lines of <= ~118 px (estimated advances)
+    # table of contents: "ㄱ 3  ㄴ 9 ..." packed into lines of <= ~124 px (estimated advances)
     def width(s):
         return sum(8 if ord(c) > 0x2E80 else 3 if c == " " else 5 for c in s)
 
-    def toc_pages(offset):
+    def toc_pages(offset, sep):
         tokens = [f"{g} {offset + i + 1}" for g, i in first_page_of.items()]
         lines, cur = [], ""
         for tok in tokens:
-            cand = tok if not cur else cur + "  " + tok
-            if width(cand) <= 118:
+            cand = tok if not cur else cur + sep + tok
+            if width(cand) <= 124:
                 cur = cand
             else:
                 lines.append(cur)
@@ -248,9 +248,14 @@ def merge_index(pages):
             out.append("\n".join([head] + lines[i:i + 5]))
         return out
 
+    def best_toc(offset):
+        """two spaces between entries (easier to read); one space only if that saves a page"""
+        wide, tight = toc_pages(offset, "  "), toc_pages(offset, " ")
+        return tight if len(tight) < len(wide) else wide
+
     offset = 0
     for _ in range(4):            # page numbers depend on how many TOC pages there are
-        toc = toc_pages(offset)
+        toc = best_toc(offset)
         if len(toc) == offset:
             break
         offset = len(toc)
