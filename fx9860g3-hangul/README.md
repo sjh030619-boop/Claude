@@ -62,6 +62,10 @@ WSL2(Ubuntu) 가 없으면 안내가 나옵니다(`wsl --install -d Ubuntu` 후 
 목록: ↑ ↓ 선택 · 숫자 2자리 점프 · EXE 열기 · F2 색인 · EXIT 뒤로/종료
 본문: ← → 페이지 · 숫자 쪽 점프 · 0 가짜 계산기 · ↑ ↓ 한 줄 스크롤 · EXE 링크 모드 · F1 쪽번호 · F2 색인 · EXIT 목록으로
 
+## 노트 검사 / 지침
+- `python3 tools/check_notes.py` : 줄 폭(128px), 페이지 6줄, 파일 9쪽, 번호 중복, 링크 대상, 폰트에 없는 글자를 검사합니다.
+- `docs/PROMPT.md` : 시험 노트를 만들 Claude 프로젝트용 지침(붙여 넣기)과 단계별 요청 프롬프트.
+
 ## PC 에서 동작 시뮬레이션 (gint 스텁)
 ```
 gcc -Isrc -Itools/sim -Dmain=app_main tools/sim/sim.c src/main.c src/hangul.c \
