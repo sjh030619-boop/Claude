@@ -31,4 +31,4 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "Build failed (exit code $LASTEXITCODE). Copy the messages above and send them back."
     exit $LASTEXITCODE
 }
-Write-Host "DONE: $root\dist\Hangul.g1a"
+Write-Host "DONE: add-ins are in $root\dist  (one .g1a per note set)"

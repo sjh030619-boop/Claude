@@ -1,0 +1,55 @@
+[출제:통합생산시스템]
+이럴때:통합생산시스템,IMS,CIM
+3장 3.5 통합생산시스템 4기능
+객관식 2003 No.13
+IMS,CIM,CALS 약어(과제)
+5장 5.3 통합 제조시스템 4기능과
+---
+[출제:통합생산시스템+]
+이럴때:통합생산시스템,IMS,CIM
+구분
+---
+[통합생산시스템 답안 1/7]
+이럴때:통합생산시스템 4기능,IMS
+통합생산시스템(integrated
+manufacturing system)의 네
+가지 기능은 제품설계(product
+design),공정계획(process
+---
+[통합생산시스템 답안 2/7]
+이럴때:통합생산시스템 4기능,IMS
+planning),생산
+실시(production
+implementation),
+생산관리(production
+---
+[통합생산시스템 답안 3/7]
+이럴때:통합생산시스템 4기능,IMS
+management)이다(3장 3.5,그림
+3.6). 수요조사 단계는 포함되지
+않는다.
+---
+[통합생산시스템 답안 4/7]
+이럴때:통합생산시스템 4기능,IMS
+컴퓨터 지원: 제품설계는 CAE와
+CAD,공정계획은 CAPP,생산은
+CAM과 CAT,생산관리는 MRP로
+지원한다.
+---
+[통합생산시스템 답안 5/7]
+이럴때:통합생산시스템 4기능,IMS
+더 나은 시스템을 위한 노력:
+IMS(integrated 또는
+intelligent manufacturing
+system),CIM(computer
+---
+[통합생산시스템 답안 6/7]
+이럴때:통합생산시스템 4기능,IMS
+integrated manufacturing),
+CALS(computer-aided
+logistics support 또는
+commerce at light speed),
+---
+[통합생산시스템 답안 7/7]
+이럴때:통합생산시스템 4기능,IMS
+Industry 4.0이다.

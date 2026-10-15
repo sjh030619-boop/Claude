@@ -1,2 +1,9 @@
 build-fx/
 dist/
+
+# generated per note set by tools/build_assets.py --set <id>
+src/font_data.c
+src/notes.c
+src/addin.cmake
+__pycache__/
+*.pyc

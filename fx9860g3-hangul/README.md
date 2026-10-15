@@ -3,33 +3,49 @@
 계산기 화면에 한글을 보여주는 fxSDK/gint add-in 입니다. Galmuri(기본 7px 한글 픽셀폰트, SIL OFL)를
 비트맵으로 내장해서 128×64 화면에 **16글자 × 6줄** 정도를 표시합니다.
 
-## 쓰는 법
-1. 글은 `notes/<폴더>/<파일>.txt` (UTF-8) 로 둡니다. 계산기에서 폴더 → 파일 → 본문 순서로 열립니다.
+## 쓰는 법 (과목마다 앱 하나: 노트 세트)
+과목별로 **노트 세트**를 만들고, 세트마다 `.g1a` 를 하나씩 만듭니다. 계산기 메뉴에서 과목 앱을 골라 실행합니다.
+```
+sets/
+  ml/                      ← 세트 id (아무 이름)
+    set.json               ← {"name": "HanML", "title": "머신러닝"}   name = 계산기 메뉴의 앱 이름(영문 8자 이하)
+    notes/<NN_폴더>/<NN_파일>.txt
+  prod/
+    set.json  notes/...
+```
+1. 글은 `sets/<세트>/notes/<폴더>/<파일>.txt` (UTF-8) 로 둡니다. 계산기에서 폴더 → 파일 → 본문 순서로 열립니다.
    - 한 파일 안에서 `---` 한 줄이 페이지 구분입니다.
-   - 이름 앞의 숫자(`01_`)는 정렬용이고 화면에는 안 보입니다.
-   - `notes/` 바로 아래 파일은 "기타" 폴더로 들어갑니다.
-2. 폰트/노트 데이터 생성:
+   - 이름 앞의 숫자(`01_`)는 정렬·번호 점프용이고, 폴더 `00` 은 색인입니다.
+   - 새 과목: `sets/<새id>/set.json` 과 `notes/` 를 만들면 됩니다. 출력 파일은 `<name>.g1a` (예: `HanML.g1a`).
+2. 노트 검사 / 데이터 생성 (세트 하나 기준):
    ```
-   python3 tools/build_assets.py              # 기본 7px, KS X 1001 전체(2350자) 포함, 약 60 KB
-   python3 tools/build_assets.py --only-used  # notes/ 에 쓴 글자만, 훨씬 작음
-   python3 tools/build_assets.py --font 11    # 11px 폰트 (10글자 × 5줄, 더 읽기 쉬움)
-   python3 tools/build_assets.py --font 9     # 9px 폰트 (12글자 × 5줄)
+   python3 tools/check_notes.py                    # 모든 세트 검사 (--set <id> 로 하나만)
+   python3 tools/build_assets.py --set prod        # 폰트 + 노트 데이터 + 앱 이름 생성 (기본 7px)
+   python3 tools/build_assets.py --set prod --only-used   # 쓴 글자만 (훨씬 작음)
+   python3 tools/build_assets.py --set prod --font 11     # 11px 폰트 (10글자 × 5줄)
    ```
-3. 빌드 ([fxSDK](https://git.planet-casio.com/Lephenixnoir/fxsdk) 필요):
+   생성되는 `src/notes.c`, `src/font_data.c`, `src/addin.cmake` 는 세트마다 달라서 git 에 올리지 않습니다.
+3. 빌드 ([fxSDK](https://git.planet-casio.com/Lephenixnoir/fxsdk) 필요) — 세트마다:
    ```
-   fxsdk build-fx
+   python3 tools/build_assets.py --set prod && fxsdk build-fx     # → HanProd.g1a
    ```
-   → `dist/Hangul.g1a` 를 USB 로 계산기 저장 메모리에 복사.
+   Windows 스크립트(아래)는 모든 세트를 차례로 빌드해서 `dist/` 에 `.g1a` 를 여러 개 만듭니다.
+4. `.g1a` 들을 USB 로 계산기 저장 메모리에 복사합니다.
 
-fxSDK CMake 템플릿이 버전에 따라 다르면 `fxsdk new hangul` 로 새 프로젝트를 만들고 `src/*`,
-`assets-fx/icon.png` 와 `pages.txt`, `tools/` 만 옮겨서 `CMakeLists.txt` 의 SOURCES 를 맞춰주세요.
+### 9쪽 초과 파일 자동 분할
+```
+python3 tools/split_notes.py --set prod           # 계획만 보기
+python3 tools/split_notes.py --set prod --write   # 9쪽씩 나누고 링크 번호까지 고침
+```
+해당 폴더의 파일 번호를 새로 매기고(`이름-1`, `이름-2`), 모든 링크가 **분할 전과 같은 페이지**를 가리키는지
+내용으로 대조한 뒤에만 파일을 씁니다.
 
 ## Windows 에서 한 번에 빌드 (WSL2)
 ```
 powershell -ExecutionPolicy Bypass -File tools\windows\build_windows.ps1
 ```
 WSL2(Ubuntu) 가 없으면 안내가 나옵니다(`wsl --install -d Ubuntu` 후 재부팅). 처음에는 툴체인 빌드에
-30~60분 이상 걸리고, 끝나면 `dist\Hangul.g1a` 가 생기며 탐색기가 열립니다.
+30~60분 이상 걸리고, 끝나면 `dist\` 에 세트마다 `.g1a` (예: `HanML.g1a`, `HanProd.g1a`) 가 생기며 탐색기가 열립니다.
 (fxSDK 서버는 git.planet-casio.com 입니다. 실제 PC 에서는 아직 검증하지 못했습니다.)
 
 ## 번호 점프 / 색인 링크

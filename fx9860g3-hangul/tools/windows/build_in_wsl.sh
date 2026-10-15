@@ -39,26 +39,34 @@ else
   echo "== [1-3/5] toolchain already set up ($MARK exists; delete it to redo)"
 fi
 
-echo "== [4/5] build"
+echo "== [4/5] build (one add-in per note set)"
 mkdir -p "$WORK"
 rsync -a --delete --exclude dist --exclude build-fx "$SRC/" "$WORK/"
 cd "$WORK"
-python3 tools/build_assets.py
-fxsdk build-fx
-
-echo "== [5/5] copy result"
-G1A="$(find "$WORK" -name '*.g1a' -print -quit)"
-if [ -z "$G1A" ]; then
-  echo "fxsdk build-fx left no .g1a; converting the ELF by hand"
-  mkdir -p dist
-  sh-elf-objcopy -O binary -R .bss -R .gint_bss build-fx/hangul build-fx/hangul.bin
-  fxgxa --g1a build-fx/hangul.bin -n Hangul -i assets-fx/icon.png -o dist/Hangul.g1a
-  G1A="$WORK/dist/Hangul.g1a"
-fi
-echo "found: $G1A"
 mkdir -p "$SRC/dist"
-cp -v "$G1A" "$SRC/dist/Hangul.g1a"
+BUILT=""
+while IFS=$'\t' read -r SET_ID OUT; do
+  echo "---- set $SET_ID -> $OUT"
+  python3 tools/check_notes.py --set "$SET_ID" || echo "WARNING: note errors in set $SET_ID (see above); building anyway"
+  python3 tools/build_assets.py --set "$SET_ID"
+  fxsdk build-fx
+  G1A="$WORK/$OUT"
+  if [ ! -f "$G1A" ]; then
+    G1A="$(find "$WORK" -maxdepth 2 -name "$OUT" -print -quit)"
+  fi
+  if [ -z "$G1A" ]; then
+    echo "fxsdk build-fx left no $OUT; converting the ELF by hand"
+    NAME="${OUT%.g1a}"
+    sh-elf-objcopy -O binary -R .bss -R .gint_bss build-fx/hangul build-fx/hangul.bin
+    fxgxa --g1a build-fx/hangul.bin -n "$NAME" -i assets-fx/icon.png -o "dist/$OUT"
+    G1A="$WORK/dist/$OUT"
+  fi
+  cp -v "$G1A" "$SRC/dist/$OUT"
+  BUILT="$BUILT $OUT"
+done < <(python3 tools/noteset.py list)
+
+echo "== [5/5] done"
 if [ "$OPEN" = 1 ] && command -v explorer.exe >/dev/null 2>&1; then
   explorer.exe "$(wslpath -w "$SRC/dist")" || true
 fi
-echo "DONE: $SRC/dist/Hangul.g1a"
+echo "DONE:$BUILT  (in $SRC/dist)"

@@ -2,7 +2,7 @@ name: Build Hangul.g1a (self-hosted Windows PC)
 
 # Runs on your own Windows PC (a self-hosted runner started with run.cmd, logged in as the
 # Windows user that has the Ubuntu WSL distro). See fx9860g3-hangul/docs/SELF_HOSTED_RUNNER.md.
-# Result: Actions run page -> Artifacts -> Hangul-g1a.
+# Result: Actions run page -> Artifacts -> Hangul-g1a (zip with one .g1a per note set).
 on:
   workflow_dispatch:
   push:
@@ -27,5 +27,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: Hangul-g1a
-          path: fx9860g3-hangul/dist/Hangul.g1a
+          path: fx9860g3-hangul/dist/*.g1a
           if-no-files-found: error

@@ -1,0 +1,54 @@
+[Roller blade 문제]
+이럴때:Roller blade,250켤레
+Roller blade=Left blade1,
+Right blade1
+Left/Right blade=shoe1,
+Roller assembly1
+---
+[Roller blade 문제+]
+이럴때:Roller blade,250켤레
+Screw4
+Roller assembly=track1,
+Wheel4,Screw2,Brake pad1
+---
+[Roller 쓰는 순서]
+이럴때:Roller blade,전개 순서
+①RB → 좌,우 blade(각 RB
+순소요)
+②blade → 슈,RA,나사4
+③RA 총소요=좌+우 blade 합
+---
+[Roller 쓰는 순서+]
+이럴때:Roller blade,전개 순서
+④트랙,휠4,나사2,패드1
+주의:나사는 합산 후 재고
+---
+[2013 문제(250켤레)]
+이럴때:Roller blade,250
+재고:RB50 좌blade0 우blade0
+재고:RA30 좌슈100 우슈100
+재고:나사1000 트랙100
+재고:휠800 패드400
+---
+[2013 풀이 1/2]
+이럴때:Roller 250,2013 풀이
+①RB 250-50=200
+②좌blade 200-0=200,우blade
+200
+③좌슈 200-100=100,우슈 100
+---
+[2013 풀이 1/2+]
+이럴때:Roller 250,2013 풀이
+④RA (200+200)-30=370
+---
+[2013 풀이 2/2]
+이럴때:Roller 250,2013 정답
+⑤트랙 370-100=270
+⑥휠 370×4=1480-800=680
+⑦패드 370-400 → 0(잉여30)
+⑧나사
+---
+[2013 풀이 2/2+]
+이럴때:Roller 250,2013 정답
+200×4×2+370×2=2340-1000=1
+340

@@ -9,9 +9,9 @@ Claude 프로젝트의 **Custom Instructions(프로젝트 지침)** 에 아래 "
 1. 프로젝트에 시험 자료(교재, 기출, 요약본 등)를 올린다.
 2. "요청 1"로 폴더·파일 구조만 먼저 받아서 확정한다.
 3. "요청 2"로 폴더 하나씩 내용을 받는다. 각 파일은 코드블록 첫 줄에 경로가 적혀 있다.
-4. 받은 내용을 `notes/` 아래 같은 경로로 저장한다(UTF-8, 확장자 `.txt`).
+4. 받은 내용을 `sets/<과목id>/notes/` 아래 같은 경로로 저장한다(UTF-8, 확장자 `.txt`). 과목마다 세트 하나(`sets/<id>/set.json` 포함, 자세한 건 README).
 5. "요청 3"으로 색인(`notes/00_색인/`)을 받아 저장한다.
-6. `python3 tools/check_notes.py` 를 실행한다. **오류(E)가 있으면 출력을 그대로 프로젝트 채팅에 붙여 넣어** 고치게 한다.
+6. `python3 tools/check_notes.py --set <과목id>` 를 실행한다. **오류(E)가 있으면 출력을 그대로 프로젝트 채팅에 붙여 넣어** 고치게 한다.
 7. `python3 tools/build_assets.py` 후 빌드(Windows: `tools\windows\build_windows.ps1`) → `Hangul.g1a` 를 계산기에 복사.
 
 ## 지침 (프로젝트 지침에 붙여 넣기)

@@ -1,0 +1,17 @@
+[세 가지 기준 답안 8/8]
+이럴때:세 가지 기준,15점 답안
+예: 대형 플랜트와 맞춤 기계는
+jobbing,의류와 자동차 부품은
+batch,정유와 라면은
+continuous.
+---
+[세 기준 암기 틀]
+이럴때:when what how often
+when 주문생산 / 재고보충생산
+what 개별 부품 / 프로세스
+how often jobbing / batch /
+continuous
+---
+[세 기준 암기 틀+]
+이럴때:when what how often
+예:선박,라면 / 자동차,철강 / 정유

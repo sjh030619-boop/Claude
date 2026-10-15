@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Validate notes/ against the calculator's real limits.
 
-  python3 tools/check_notes.py            # check notes/ (font 7px, like the build default)
+  python3 tools/check_notes.py            # check every note set (font 7px, like the build default)
+  python3 tools/check_notes.py --set prod # one set
   python3 tools/check_notes.py --font 9
 
 Checks (E = error, W = warning):
@@ -20,6 +21,8 @@ import argparse
 import re
 import sys
 from pathlib import Path
+
+import noteset
 
 ROOT = Path(__file__).resolve().parent.parent
 SCREEN_W, SCREEN_H = 128, 64
@@ -69,16 +72,12 @@ def line_width(line, adv, missing):
     return w
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--font", type=int, choices=(7, 9, 11), default=7)
-    a = ap.parse_args()
-    adv = load_adv(a.font)
-    max_lines = SCREEN_H // HEIGHT[a.font]
+def check(nd, font):
+    adv = load_adv(font)
+    max_lines = SCREEN_H // HEIGHT[font]
 
-    nd = ROOT / "notes"
     if not nd.is_dir():
-        sys.exit("notes/ not found")
+        sys.exit(f"{nd} not found")
 
     folders = []  # (name, num, [(path, title, num, pages)])
     def read_files(files):
@@ -156,7 +155,22 @@ def main():
         print("E", m)
     nfiles = sum(len(f) for _, _, f in folders)
     print(f"\n폴더 {len(folders)}개, 파일 {nfiles}개 검사 — 오류 {len(errors)}, 경고 {len(warns)}")
-    sys.exit(1 if errors else 0)
+    return len(errors)
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--set", dest="set_id", help="note set id; default: check every set")
+    ap.add_argument("--font", type=int, choices=(7, 9, 11), default=7)
+    a = ap.parse_args()
+    sets = noteset.list_sets() if a.set_id is None else [noteset.get_set(a.set_id)]
+    if not sets:
+        sys.exit("no note sets found (sets/<id>/set.json + sets/<id>/notes/)")
+    bad = 0
+    for ns in sets:
+        print(f"===== set {ns['id']} ({ns['title']}) =====")
+        bad += check(ns["notes"], a.font)
+    sys.exit(1 if bad else 0)
 
 
 if __name__ == "__main__":

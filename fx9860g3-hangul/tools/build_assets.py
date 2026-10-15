@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Generate src/font_data.c and src/notes.c for the Hangul add-in.
 
+  python3 tools/build_assets.py --set prod      # note set sets/prod (omit --set if only one set)
   python3 tools/build_assets.py                 # Galmuri7, KS X 1001 + used chars
   python3 tools/build_assets.py --font 11       # bigger font (11px Hangul)
   python3 tools/build_assets.py --only-used     # smallest: only chars in pages.txt
@@ -13,6 +14,8 @@ import argparse
 import re
 import sys
 from pathlib import Path
+
+import noteset
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -184,10 +187,9 @@ def check_dups(nums, what):
         seen.add(n)
 
 
-def build_notes():
-    nd = ROOT / "notes"
+def build_notes(nd):
     if not nd.is_dir():
-        sys.exit("notes/ directory not found (notes/<folder>/<file>.txt)")
+        sys.exit(f"{nd} not found (sets/<id>/notes/<folder>/<file>.txt)")
     folders = []
     for d in sorted(p for p in nd.iterdir() if p.is_dir()):
         files = sorted(d.glob("*.txt"))
@@ -197,10 +199,10 @@ def build_notes():
     if root_files:
         folders.append(("기타", -1, root_files))
     if not folders:
-        sys.exit("no .txt files under notes/")
+        sys.exit(f"no .txt files under {nd}")
 
     used = set()
-    lines = ["/* Generated from notes/ by tools/build_assets.py -- do not edit. */",
+    lines = ["/* Generated from a note set by tools/build_assets.py -- do not edit. */",
              '#include "hangul.h"', ""]
     nfiles = npages = 0
     check_dups([n for _, n, _ in folders], 'folder')
@@ -234,12 +236,18 @@ def build_notes():
 
 def main():
     ap = argparse.ArgumentParser()
+    ap.add_argument("--set", dest="set_id", help="note set id (sets/<id>); optional if only one set exists")
     ap.add_argument("--font", type=int, choices=(7, 9, 11), default=7)
     ap.add_argument("--only-used", action="store_true",
-                    help="only include glyphs that appear in notes/ (smallest)")
+                    help="only include glyphs that appear in the notes (smallest)")
     a = ap.parse_args()
-    used = build_notes()
+    ns = noteset.get_set(a.set_id)
+    used = build_notes(ns["notes"])
     build_font(a.font, used, a.only_used)
+    # add-in name / output file for CMake (see CMakeLists.txt)
+    (ROOT / "src" / "addin.cmake").write_text(
+        f'set(ADDIN_NAME "{ns["name"]}")\nset(ADDIN_OUTPUT "{ns["output"]}")\n', encoding="utf-8")
+    print(f"set: {ns['id']} ({ns['title']}) -> add-in {ns['name']} / {ns['output']}")
 
 
 if __name__ == "__main__":
