@@ -89,14 +89,143 @@ static int tiny_group(const char *s, const char **end, int *n)
     return 1;
 }
 
+/* ---- formula lines ---------------------------------------------------------
+   A source line that contains `$` is a formula line: it is FORMULA_H pixels tall (two text
+   lines + a little air) and never wraps. Inside `$...$`, `{num;den}` draws a fraction (num over
+   den with a bar). `_{..}` / `^{..}` are drawn in the normal 7px glyphs, 3 px lower / higher
+   (inside a fraction: the small 3x5 font). `$` itself is not drawn. Layout (rows of the 22 px
+   band): numerator 1..7, bar 10, denominator 12..18, base text centred on the bar. */
+#define FORMULA_H 22
+
+static int line_has_formula(const char *s)
+{
+    for(; *s && *s != '\n' && *s != '\f'; s++)
+        if(*s == '$') return 1;
+    return 0;
+}
+
+int hg_line_formula(const char *s) { return line_has_formula(s); }
+
+/* s is just after '{'. Returns the matching '}' (or 0); *semi = the top-level ';' (or 0). */
+static const char *frac_end(const char *s, const char **semi)
+{
+    int depth = 1;
+    *semi = 0;
+    for(; *s && *s != '\n' && *s != '\f'; s++) {
+        if(*s == '{') depth++;
+        else if(*s == '}') { if(--depth == 0) return s; }
+        else if(*s == ';' && depth == 1 && !*semi) *semi = s;
+    }
+    return 0;
+}
+
+/* Text of [a, b) with scripts only (no fractions). big = scripts in 7px glyphs. Returns the width. */
+static int run(int x, int ty, const char *a, const char *b, int big, int draw)
+{
+    int cx = 0;
+    while(a < b) {
+        const char *end;
+        int n;
+        if(tiny_group(a, &end, &n) && end <= b) {
+            int sup = (a[0] == '^');
+            const char *p = a + 2;
+            for(int i = 0; i < n; i++) {
+                uint32_t c = decode(&p);
+                if(big) {
+                    int idx = glyph_index(c);
+                    if(idx < 0) continue;
+                    if(draw) draw_glyph(x + cx, ty + (sup ? -3 : 3), idx);
+                    cx += hg_adv[idx];
+                } else {
+                    if(draw) draw_tiny(x + cx, ty + (sup ? 2 : hg_height - 5), c < 0x80 ? (int)c : '?');
+                    cx += TINY_ADV;
+                }
+            }
+            a = end;
+            continue;
+        }
+        uint32_t cp = decode(&a);
+        int idx = glyph_index(cp);
+        if(idx < 0) continue;
+        if(draw) draw_glyph(x + cx, ty, idx);
+        cx += hg_adv[idx];
+    }
+    return cx;
+}
+
+/* Draws (or measures, draw = 0) the formula line starting at s with its top at y. Returns the end of the line
+   ('\n', '\f' or NUL) and stores the width in *width. */
+static const char *formula_line(int x, int y, const char *s, int draw, int *width)
+{
+    int cx = 0, math = 0, ty = y + 5;
+
+    while(*s && *s != '\n' && *s != '\f') {
+        if(*s == '$') { math = !math; s++; continue; }
+        if(math && *s == '{') {
+            const char *semi, *close = frac_end(s + 1, &semi);
+            if(close && semi) {
+                int wn = run(0, 0, s + 1, semi, 0, 0), wd = run(0, 0, semi + 1, close, 0, 0);
+                int w = wn > wd ? wn : wd;
+                if(draw) {
+                    for(int i = 0; i < w + 2; i++) hg_plot(x + cx + 1 + i, y + 10);
+                    run(x + cx + 2 + (w - wn) / 2, y - 1, s + 1, semi, 0, 1);
+                    run(x + cx + 2 + (w - wd) / 2, y + 10, semi + 1, close, 0, 1);
+                }
+                cx += w + 4;
+                s = close + 1;
+                continue;
+            }
+        }
+        /* one item of base text or a script group, up to the next '$' or '{' (in math) */
+        const char *e = s;
+        const char *end;
+        int n;
+        if(tiny_group(e, &end, &n)) e = end;
+        else { decode(&e); }
+        cx += run(x + cx, ty, s, e, 1, draw);
+        s = e;
+    }
+    *width = cx;
+    return s;
+}
+
+int hg_formula_width(const char *line)
+{
+    int w;
+    formula_line(0, 0, line, 0, &w);
+    return w;
+}
+
+int hg_line_y(const char *s, int line)
+{
+    int y = 0;
+    while(line-- > 0) {
+        y += line_has_formula(s) ? FORMULA_H : hg_height;
+        while(*s && *s != '\n' && *s != '\f') s++;
+        if(*s != '\n') break;
+        s++;
+    }
+    return y;
+}
+
 static int draw_impl(int x, int y, int width, int line_gap, const char *s,
                      const hg_link *links, int nlinks)
 {
-    int cx = 0;
+    int cx = 0, at_start = 1, last_h = hg_height;
 
     while(*s && *s != '\f') {
         const char *end;
         int n;
+        if(at_start) {
+            at_start = 0;
+            if(line_has_formula(s)) {
+                int w;
+                s = formula_line(x, y, s, 1, &w);
+                last_h = FORMULA_H;
+                if(*s == '\n') { s++; y += FORMULA_H + line_gap; at_start = 1; last_h = hg_height; }
+                continue;
+            }
+        }
         for(int i = 0; i < nlinks; i++)
             if(links[i].hide && s == links[i].ts) { s = links[i].te; break; }
         if(!*s || *s == '\f') break;
@@ -122,6 +251,7 @@ static int draw_impl(int x, int y, int width, int line_gap, const char *s,
         if(cp == '\n') {
             cx = 0;
             y += hg_height + line_gap;
+            at_start = 1;
             continue;
         }
         if(cp == '\r') continue;
@@ -138,7 +268,7 @@ static int draw_impl(int x, int y, int width, int line_gap, const char *s,
         draw_glyph(x + cx, y, idx);
         cx += adv;
     }
-    return y + hg_height;
+    return y + last_h;
 }
 
 int hg_draw_text(int x, int y, int width, int line_gap, const char *s)

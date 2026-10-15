@@ -56,6 +56,12 @@ int hg_draw_text_links(int x, int y, int width, int line_gap, const char *utf8,
    Returns the width in pixels. */
 int hg_tiny_text(int x, int y, const char *ascii);
 
+/* Formula lines: a source line containing `$` is FORMULA_H (22) px tall. `$...$` may contain `{num;den}`
+   fractions and `_{..}` / `^{..}` scripts (see hangul.c). */
+int hg_line_formula(const char *line);       /* 1 if the line (up to '\n') is a formula line */
+int hg_formula_width(const char *line);      /* its width in pixels */
+int hg_line_y(const char *page_text, int line);   /* y of the top of line `line` (0-based) on the page */
+
 /* Provided by the host program: set one black pixel. Must clip. */
 void hg_plot(int x, int y);
 

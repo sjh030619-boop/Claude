@@ -11,7 +11,9 @@ Checks (E = error, W = warning):
      6 px gutter for the '>' marker; real glyph advances from the bitmap font).
      On a link line the "->F/N:P" token is hidden when the line has exactly one link and a title
      in front of it (title not ending in ':'), so the width is measured without the token.
-  E  more lines on a page than fit on screen (64 px / cell height = 6 for 7px)
+  E  page too tall: 10 px per line (6 lines) but a formula line (contains '$') is 22 px tall
+     (see formula_width: `$...$` with {분자;분모} fractions and _{..}/^{..} scripts); '$' must be paired,
+     a formula line cannot contain a link
   E  glyph missing from the font (would print '?')
   E  duplicate folder/file numbers; link to a folder/file/page that does not exist
   E  more than 8 links on one page
@@ -99,6 +101,64 @@ def line_width(line, adv, missing):
 TOKEN_RE = re.compile(r"→\d+/\d+(?::\d+)?")
 
 
+def formula_width(line, adv, missing, err):
+    """Width of a formula line (contains '$'): `$...$` may hold {num;den} fractions; `_{..}`/`^{..}`
+    are 7px glyphs outside fractions and 4 px/char inside; '$' is not drawn. err collects problems."""
+    def glyph(c):
+        if ord(c) in adv:
+            return adv[ord(c)]
+        missing.add(c)
+        return adv.get(ord("?"), 5)
+
+    def run(t, big):
+        w, i = 0, 0
+        while i < len(t):
+            if t[i] in "_^" and t[i + 1:i + 2] == "{":
+                j = t.find("}", i + 2)
+                if j != -1:
+                    w += sum(glyph(c) for c in t[i + 2:j]) if big else TINY_ADV * (j - i - 2)
+                    i = j + 1
+                    continue
+            w += glyph(t[i])
+            i += 1
+        return w
+
+    w, i, math = 0, 0, False
+    while i < len(line):
+        c = line[i]
+        if c == "$":
+            math = not math
+            i += 1
+            continue
+        if math and c == "{":
+            depth, j, semi = 1, i + 1, -1
+            while j < len(line) and depth:
+                if line[j] == "{":
+                    depth += 1
+                elif line[j] == "}":
+                    depth -= 1
+                elif line[j] == ";" and depth == 1 and semi < 0:
+                    semi = j
+                j += 1
+            if depth or semi < 0:
+                err.append("분수 {분자;분모} 의 괄호나 ';' 가 맞지 않음")
+                return w
+            w += max(run(line[i + 1:semi], False), run(line[semi + 1:j - 1], False)) + 4
+            i = j
+            continue
+        if c in "_^" and line[i + 1:i + 2] == "{":
+            j = line.find("}", i + 2)
+            if j != -1:
+                w += run(line[i:j + 1], True)
+                i = j + 1
+                continue
+        w += glyph(c)
+        i += 1
+    if math:
+        err.append("'$' 가 짝이 맞지 않음")
+    return w
+
+
 def displayed_line(line):
     """What the viewer draws: a line with exactly one link token and a title in front of it
     (not a label ending in ':') shows the title only; the token is hidden."""
@@ -175,13 +235,24 @@ def check(nd, font):
                 W(f"{where}: 파일명이 {MAX_NAME}자 초과 ({len(title)}자)")
             for pi, page in enumerate(pages, 1):
                 lines = page.split("\n")
-                if len(lines) > max_lines:
-                    E(f"{where} 쪽{pi}: {len(lines)}줄 (최대 {max_lines}줄)")
+                nform = sum(1 for l in lines if "$" in l)
+                height = len(lines) * HEIGHT[font] + nform * 12     # a formula line is 2 lines + 2 px
+                if height > SCREEN_H:
+                    extra = f", 수식 줄 {nform}개(각 {HEIGHT[font] + 12}px)" if nform else ""
+                    E(f"{where} 쪽{pi}: 높이 {height}px > {SCREEN_H}px ({len(lines)}줄{extra})")
                 missing = set()
                 has_link = bool(link_re.search(page))
                 limit = SCREEN_W - (MARK_W if has_link else 0)
                 for li, line in enumerate(lines, 1):
-                    w = line_width(displayed_line(line) if has_link else line, adv, missing)
+                    if "$" in line:
+                        ferr = []
+                        w = formula_width(line, adv, missing, ferr)
+                        for m_ in ferr:
+                            E(f"{where} 쪽{pi} 줄{li}: {m_} | {line}")
+                        if has_link and link_re.search(line):
+                            E(f"{where} 쪽{pi} 줄{li}: 수식 줄에는 링크를 둘 수 없음 | {line}")
+                    else:
+                        w = line_width(displayed_line(line) if has_link else line, adv, missing)
                     if w > limit:
                         note = " (링크가 있는 쪽은 선택 표시 칸 때문에 122)" if has_link else ""
                         E(f"{where} 쪽{pi} 줄{li}: 폭 {w}px > {limit}px{note} | {line}")

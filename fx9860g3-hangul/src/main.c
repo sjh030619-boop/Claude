@@ -188,7 +188,7 @@ static void view(const hg_file *f, int page, int *last_page)
         dclear(C_WHITE);
         hg_draw_text_links(x0, -scroll * hg_height, 128 - x0, 0, text, links, nlinks);
         if(nlinks) {
-            int ly = (links[link_sel].line - scroll) * hg_height;
+            int ly = hg_line_y(text, links[link_sel].line) - scroll * hg_height;
             hg_draw_text(0, ly, 1000, 0, ">");
             /* several links can share a line: underline the selected one */
             int ux = x0 + links[link_sel].ux, uy = ly + hg_height - 1;
@@ -207,7 +207,7 @@ static void view(const hg_file *f, int page, int *last_page)
             while(k) buf[n++] = tmp[--k];
             buf[n] = 0;
             int w = n * 4;
-            int w0 = hg_text_width(text);   /* first line as drawn (hidden tokens left out) */
+            int w0 = hg_line_formula(text) ? hg_formula_width(text) : hg_text_width(text);   /* first line as drawn */
             for(int i = 0; i < nlinks; i++)
                 if(links[i].line == 0) { w0 = links[i].lw; break; }
             if(x0 + w0 + 3 + w <= 128) hg_tiny_text(128 - w, 0, buf);
