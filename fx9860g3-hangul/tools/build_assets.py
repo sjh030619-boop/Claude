@@ -12,6 +12,7 @@ line containing only '---'. Leading numbers in names (01_) only set the order.
 """
 import argparse
 import re
+import unicodedata
 import sys
 from pathlib import Path
 
@@ -112,7 +113,7 @@ def build_font(size, used, only_used):
             continue
         _, more = parse_bdf(ROOT / "fonts" / f"Galmuri{fb}.bdf", gap)
         glyphs.update(more)
-    missing = sorted(c for c in used if c not in glyphs and c not in (0x0A,))
+    missing = sorted(c for c in used if c not in glyphs and c not in (0x0A, 0x302, 0x304))
     if missing:
         print("warning: no glyph for:", "".join(map(chr, missing)), file=sys.stderr)
 
@@ -270,6 +271,22 @@ def check_dups(nums, what):
         seen.add(n)
 
 
+MARKS = {"\u0302", "\u0304"}      # combining hat / bar: drawn over the previous glyph by the viewer
+
+
+def decompose_marks(text):
+    """ŷ (U+0177), ȳ ... -> base letter + combining hat/bar; everything else is left as it is."""
+    out = []
+    for ch in text:
+        if ord(ch) > 0x7F:
+            d = unicodedata.normalize("NFD", ch)
+            if len(d) == 2 and d[0].isascii() and d[1] in MARKS:
+                out.append(d)
+                continue
+        out.append(ch)
+    return "".join(out)
+
+
 def is_index_folder(fname, fnum):
     """Folder 00 and any folder whose name contains "색인" is an index (merged into one document)."""
     return fnum == 0 or "색인" in fname
@@ -309,7 +326,7 @@ def build_notes(nd):
             # an index folder: one continuous document (see merge_index)
             raw = []
             for f in files:
-                src = f.read_text(encoding="utf-8").replace("\r\n", "\n")
+                src = decompose_marks(f.read_text(encoding="utf-8").replace("\r\n", "\n"))
                 pg = [p.strip("\n") for p in re.split(r"^---[ \t]*$", src, flags=re.M)]
                 raw += [p for p in pg if p.strip()]
             pages = merge_index(raw)
@@ -323,7 +340,7 @@ def build_notes(nd):
             continue
         for f in files:
             title = display_name(f.stem)
-            src = f.read_text(encoding="utf-8").replace("\r\n", "\n")
+            src = decompose_marks(f.read_text(encoding="utf-8").replace("\r\n", "\n"))
             pages = [p.strip("\n") for p in re.split(r"^---[ \t]*$", src, flags=re.M)]
             pages = [p for p in pages if p.strip()]
             used |= {ord(c) for c in title} | {ord(c) for p in pages for c in p}

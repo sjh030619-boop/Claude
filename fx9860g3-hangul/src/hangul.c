@@ -55,6 +55,26 @@ static void draw_glyph(int x, int y, int idx)
 
 #define TINY_ADV 4
 
+/* Combining marks drawn over the previous glyph (no advance): U+0302 hat (y + hat = y-hat), U+0304 bar. */
+static int is_mark(uint32_t cp) { return cp == 0x302 || cp == 0x304; }
+
+static void draw_mark(int x, int y, int idx, uint32_t cp)
+{
+    const uint16_t *rows = hg_bits + (long)idx * hg_height;
+    int top = 0, adv = hg_adv[idx];
+    while(top < hg_height && !rows[top]) top++;
+    int mx = x + (adv > 3 ? (adv - 3) / 2 : 0);
+    if(cp == 0x302) {
+        int r = top - 3 < 0 ? 0 : top - 3;
+        hg_plot(mx + 1, y + r);
+        hg_plot(mx, y + r + 1);
+        hg_plot(mx + 2, y + r + 1);
+    } else {
+        int r = top - 2 < 0 ? 0 : top - 2;
+        for(int i = 0; i < 3; i++) hg_plot(mx + i, y + r);
+    }
+}
+
 static void draw_tiny(int x, int y, int ch)
 {
     if(ch < 0x20 || ch > 0x7E) return;
@@ -122,7 +142,7 @@ static const char *frac_end(const char *s, const char **semi)
 /* Text of [a, b) with scripts only (no fractions). big = scripts in 7px glyphs. Returns the width. */
 static int run(int x, int ty, const char *a, const char *b, int big, int draw)
 {
-    int cx = 0;
+    int cx = 0, prev_x = 0, prev_idx = -1;
     while(a < b) {
         const char *end;
         int n;
@@ -145,9 +165,14 @@ static int run(int x, int ty, const char *a, const char *b, int big, int draw)
             continue;
         }
         uint32_t cp = decode(&a);
+        if(is_mark(cp)) {
+            if(draw && prev_idx >= 0) draw_mark(prev_x, ty, prev_idx, cp);
+            continue;
+        }
         int idx = glyph_index(cp);
         if(idx < 0) continue;
         if(draw) draw_glyph(x + cx, ty, idx);
+        prev_x = x + cx; prev_idx = idx;
         cx += hg_adv[idx];
     }
     return cx;
@@ -181,7 +206,14 @@ static const char *formula_line(int x, int y, const char *s, int draw, int *widt
         const char *end;
         int n;
         if(tiny_group(e, &end, &n)) e = end;
-        else { decode(&e); }
+        else {
+            decode(&e);
+            for(;;) {                       /* keep combining marks with their base glyph */
+                const char *q = e;
+                if(!*q || !is_mark(decode(&q))) break;
+                e = q;
+            }
+        }
         cx += run(x + cx, ty, s, e, 1, draw);
         s = e;
     }
@@ -211,7 +243,7 @@ int hg_line_y(const char *s, int line)
 static int draw_impl(int x, int y, int width, int line_gap, const char *s,
                      const hg_link *links, int nlinks)
 {
-    int cx = 0, at_start = 1, last_h = hg_height;
+    int cx = 0, at_start = 1, last_h = hg_height, prev_x = 0, prev_y = 0, prev_idx = -1;
 
     while(*s && *s != '\f') {
         const char *end;
@@ -255,6 +287,10 @@ static int draw_impl(int x, int y, int width, int line_gap, const char *s,
             continue;
         }
         if(cp == '\r') continue;
+        if(is_mark(cp)) {
+            if(prev_idx >= 0) draw_mark(prev_x, prev_y, prev_idx, cp);
+            continue;
+        }
 
         int idx = glyph_index(cp);
         if(idx < 0) continue;
@@ -266,6 +302,7 @@ static int draw_impl(int x, int y, int width, int line_gap, const char *s,
             if(cp == ' ') continue; /* don't start a line with a space */
         }
         draw_glyph(x + cx, y, idx);
+        prev_x = x + cx; prev_y = y; prev_idx = idx;
         cx += adv;
     }
     return y + last_h;
@@ -301,7 +338,9 @@ int hg_text_width(const char *s)
 {
     int w = 0;
     while(*s && *s != '\n' && *s != '\f') {
-        int idx = glyph_index(decode(&s));
+        uint32_t cp = decode(&s);
+        if(is_mark(cp)) continue;
+        int idx = glyph_index(cp);
         if(idx >= 0) w += hg_adv[idx];
     }
     return w;
@@ -326,7 +365,9 @@ static int span_width(const char *a, const char *b, const char *skip_a, const ch
         int n;
         if(skip_a && a == skip_a) { a = skip_b; continue; }
         if(tiny_group(a, &end, &n) && end <= b) { w += n * TINY_ADV; a = end; continue; }
-        int idx = glyph_index(decode(&a));
+        uint32_t cp = decode(&a);
+        if(is_mark(cp)) continue;
+        int idx = glyph_index(cp);
         if(idx >= 0) w += hg_adv[idx];
     }
     return w;

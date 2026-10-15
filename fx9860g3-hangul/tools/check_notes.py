@@ -30,6 +30,7 @@ import argparse
 import json
 import re
 import sys
+import unicodedata
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -62,6 +63,21 @@ NAME_OK = re.compile(r"^[0-9A-Za-z가-힣_\-]+$")
 WIN_BAD = set('<>:"/\\|?*')   # not allowed in Windows file names (error); other odd characters only warn
 
 
+MARKS = {"\u0302", "\u0304"}      # combining hat / bar: zero width, drawn over the previous glyph
+
+
+def decompose_marks(text):
+    out = []
+    for ch in text:
+        if ord(ch) > 0x7F:
+            d = unicodedata.normalize("NFD", ch)
+            if len(d) == 2 and d[0].isascii() and d[1] in MARKS:
+                out.append(d)
+                continue
+        out.append(ch)
+    return "".join(out)
+
+
 def rel(path):
     try:
         return str(path.relative_to(ROOT))
@@ -89,6 +105,9 @@ def line_width(line, adv, missing):
                 i = j + 1
                 continue
         c = ord(line[i])
+        if line[i] in MARKS:
+            i += 1
+            continue
         if c in adv:
             w += adv[c]
         else:
@@ -105,6 +124,8 @@ def formula_width(line, adv, missing, err):
     """Width of a formula line (contains '$'): `$...$` may hold {num;den} fractions; `_{..}`/`^{..}`
     are 7px glyphs outside fractions and 4 px/char inside; '$' is not drawn. err collects problems."""
     def glyph(c):
+        if c in MARKS:
+            return 0
         if ord(c) in adv:
             return adv[ord(c)]
         missing.add(c)
@@ -183,7 +204,7 @@ def check(nd, font):
     def read_files(files):
         out = []
         for f in files:
-            src = f.read_text(encoding="utf-8").replace("\r\n", "\n")
+            src = decompose_marks(f.read_text(encoding="utf-8").replace("\r\n", "\n"))
             pages = [p.strip("\n") for p in re.split(r"^---[ \t]*$", src, flags=re.M)]
             out.append((f, display_name(f.stem), name_num(f.stem), [p for p in pages if p.strip()]))
         return out
