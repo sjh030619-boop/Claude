@@ -1,0 +1,29 @@
+name: Build Hangul.g1a (self-hosted Windows PC)
+
+# Runs on your own Windows PC (a self-hosted runner started with run.cmd, logged in as the
+# Windows user that has the Ubuntu WSL distro). See fx9860g3-hangul/docs/SELF_HOSTED_RUNNER.md.
+# Result: Actions run page -> Artifacts -> Hangul-g1a.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'fx9860g3-hangul/**'
+      - '.github/workflows/build-g1a-local.yml'
+
+jobs:
+  build:
+    runs-on: [self-hosted, Windows]
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build in WSL
+        shell: powershell
+        working-directory: fx9860g3-hangul
+        run: powershell -ExecutionPolicy Bypass -File tools\windows\build_windows.ps1 -NoOpen
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Hangul-g1a
+          path: fx9860g3-hangul/dist/Hangul.g1a
+          if-no-files-found: error

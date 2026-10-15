@@ -1,6 +1,7 @@
 ﻿# One-shot build on Windows via WSL2 (Ubuntu). Run from PowerShell:
 #   powershell -ExecutionPolicy Bypass -File tools\windows\build_windows.ps1
 # Result: dist\Hangul.g1a (in this project folder). Untested on a real PC -- see README.
+param([switch]$NoOpen)
 $ErrorActionPreference = "Stop"
 
 if (-not (Get-Command wsl -ErrorAction SilentlyContinue)) {
@@ -20,7 +21,9 @@ Write-Host "Project : $root"
 Write-Host "WSL path: $wslRoot"
 Write-Host "First run: asks for your Ubuntu (sudo) password and builds the toolchain (30-60+ min). Do not close this window."
 
-wsl -d Ubuntu bash "$wslRoot/tools/windows/build_in_wsl.sh" "$wslRoot"
+$extra = @()
+if ($NoOpen) { $extra += "--no-open" }
+wsl -d Ubuntu bash "$wslRoot/tools/windows/build_in_wsl.sh" "$wslRoot" @extra
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Build failed (exit code $LASTEXITCODE). Copy the messages above and send them back."
     exit $LASTEXITCODE

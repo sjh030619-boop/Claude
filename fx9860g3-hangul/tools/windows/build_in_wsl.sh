@@ -2,9 +2,13 @@
 # Runs inside WSL Ubuntu: installs fxSDK + gint (first time only) and builds Hangul.g1a.
 set -eu   # no pipefail on purpose: `yes | giteapc ...` ends with SIGPIPE (141) once giteapc stops reading
 
-SRC="${1:?usage: build_in_wsl.sh <project dir>}"
+SRC="${1:?usage: build_in_wsl.sh <project dir> [--no-open]}"
+OPEN=1; [ "${2:-}" = "--no-open" ] && OPEN=0
 WORK="$HOME/hangul-build"
+MARK="$HOME/.hangul_toolchain_ok"   # created after the first full setup; delete it to redo setup
 export PATH="$HOME/.local/bin:$PATH"
+
+if [ ! -f "$MARK" ]; then
 
 echo "== [1/5] system packages"
 sudo apt-get update
@@ -29,6 +33,11 @@ command -v sh-elf-gcc >/dev/null 2>&1 || yes | giteapc install Lephenixnoir/sh-e
 command -v fxsdk      >/dev/null 2>&1 || yes | giteapc install Lephenixnoir/fxsdk
 yes | giteapc install Lephenixnoir/OpenLibm Lephenixnoir/gint
 
+touch "$MARK"
+else
+  echo "== [1-3/5] toolchain already set up ($MARK exists; delete it to redo)"
+fi
+
 echo "== [4/5] build"
 mkdir -p "$WORK"
 rsync -a --delete --exclude dist --exclude build-fx "$SRC/" "$WORK/"
@@ -48,7 +57,7 @@ fi
 echo "found: $G1A"
 mkdir -p "$SRC/dist"
 cp -v "$G1A" "$SRC/dist/Hangul.g1a"
-if command -v explorer.exe >/dev/null 2>&1; then
+if [ "$OPEN" = 1 ] && command -v explorer.exe >/dev/null 2>&1; then
   explorer.exe "$(wslpath -w "$SRC/dist")" || true
 fi
 echo "DONE: $SRC/dist/Hangul.g1a"
