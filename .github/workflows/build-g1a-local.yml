@@ -18,7 +18,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build in WSL
-        shell: powershell
+        # cmd, not powershell: the runner runs a "powershell" step as a temp .ps1 file, which a
+        # default Windows execution policy blocks. cmd + "-ExecutionPolicy Bypass -File" works.
+        shell: cmd
         working-directory: fx9860g3-hangul
         run: powershell -ExecutionPolicy Bypass -File tools\windows\build_windows.ps1 -NoOpen
 
