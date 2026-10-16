@@ -185,6 +185,17 @@ static int run(int x, int ty, const char *a, const char *b, int big, int draw)
     return cx;
 }
 
+/* |...| around a fraction, a square root or a sum with limits is drawn with tall bars. */
+static int segment_tall(const char *a, const char *b)
+{
+    for(const char *p = a; p < b; p++) {
+        if(*p == '{' && (p == a || (p[-1] != '_' && p[-1] != '^'))) return 1;
+        if(p + 3 < b && (uint8_t)p[0] == 0xE2 && (uint8_t)p[1] == 0x88 && (uint8_t)p[2] == 0x91 &&
+           (p[3] == '_' || p[3] == '^')) return 1;
+    }
+    return 0;
+}
+
 static void plot_line(int x0, int y0, int x1, int y1)
 {
     int dx = x1 > x0 ? x1 - x0 : x0 - x1, dy = y1 > y0 ? y1 - y0 : y0 - y1;
@@ -215,9 +226,25 @@ static int is_sym(const char *s, uint8_t b2, uint8_t b3)
 static const char *formula_line(int x, int y, const char *s, int draw, int *width)
 {
     int cx = 0, math = 0, ty = y + 5;
+    const char *tall_close = 0;
 
     while(*s && *s != '\n' && *s != '\f') {
         if(*s == '$') { math = !math; s++; continue; }
+        if(*s == '|') {
+            int tall = 0;
+            if(tall_close == s) { tall = 1; tall_close = 0; }
+            else if(!tall_close) {
+                const char *q = s + 1;
+                while(*q && *q != '|' && *q != '\n' && *q != '\f') q++;
+                if(*q == '|' && segment_tall(s + 1, q)) { tall = 1; tall_close = q; }
+            }
+            if(tall) {
+                if(draw) for(int r = 1; r <= 19; r++) hg_plot(x + cx + 1, y + r);
+                cx += 3;
+                s++;
+                continue;
+            }
+        }
         /* sum with limits: U+2211 followed by _{lo} and/or ^{hi} (stacked above / below the sign) */
         if(is_sym(s, 0x88, 0x91) && (s[3] == '_' || s[3] == '^')) {
             const char *p = s + 3, *lo = 0, *lo_e = 0, *hi = 0, *hi_e = 0, *end;

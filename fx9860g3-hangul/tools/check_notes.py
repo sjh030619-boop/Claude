@@ -58,7 +58,7 @@ def load_adv(size):
     return adv
 
 
-FORBIDDEN = set("&#?~\"'·%*!|\\∏Π∥ØΣ") | set("ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩⅰⅱⅲⅳⅴⅵⅶⅷⅸⅹ") | set("⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳")
+FORBIDDEN = set("&#?~\"'·%*!\\∏Π∥ØΣ") | set("ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩⅰⅱⅲⅳⅴⅵⅶⅷⅸⅹ") | set("⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳")
 NAME_OK = re.compile(r"^[0-9A-Za-z가-힣_\-]+$")
 WIN_BAD = set('<>:"/\\|?*')   # not allowed in Windows file names (error); other odd characters only warn
 
@@ -120,6 +120,16 @@ def line_width(line, adv, missing):
 TOKEN_RE = re.compile(r"→\d+/\d+(?::\d+)?")
 
 
+def segment_tall(seg):
+    """|...| around a fraction {a;b}, a sqrt, or a sum with limits is drawn as tall bars (22 px band)."""
+    for k, ch in enumerate(seg):
+        if ch == "{" and (k == 0 or seg[k - 1] not in "_^"):
+            return True
+        if ch == "∑" and seg[k + 1:k + 2] in ("_", "^"):
+            return True
+    return False
+
+
 def formula_width(line, adv, missing, err):
     """Width of a formula line (contains '$'): `$...$` may hold {num;den} fractions; `_{..}`/`^{..}`
     are 7px glyphs outside fractions and 4 px/char inside; '$' is not drawn. err collects problems."""
@@ -144,13 +154,26 @@ def formula_width(line, adv, missing, err):
             i += 1
         return w
 
-    w, i, math = 0, 0, False
+    w, i, math, tall_close = 0, 0, False, -1
     while i < len(line):
         c = line[i]
         if c == "$":
             math = not math
             i += 1
             continue
+        if c == "|":
+            if tall_close == i:                    # closing tall bar
+                tall_close = -1
+                w += 3
+                i += 1
+                continue
+            if tall_close < 0:
+                j = line.find("|", i + 1)
+                if j > 0 and segment_tall(line[i + 1:j]):
+                    tall_close = j
+                    w += 3
+                    i += 1
+                    continue
         if c == "∑" and line[i + 1:i + 2] in ("_", "^") and line[i + 2:i + 3] == "{":
             # sum with limits: _{lo} and/or ^{hi} stacked above / below the sign
             lo = hi = 0
