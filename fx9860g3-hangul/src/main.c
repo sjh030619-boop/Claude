@@ -4,7 +4,7 @@
 #include <gint/gint.h>
 #include <gint/keyboard.h>
 
-#include "fakecalc.h"
+#include "calc.h"
 #include "hangul.h"
 
 #define MAX_DEPTH 6   /* nested jumps (links / F2) */
@@ -138,12 +138,10 @@ static int pick(const list_t *l, int *sel, int *top, int top_level)
 
 /* ---- fake calculator screen ----------------------------------------------- */
 
-/* A picture of an idle Run-Mat screen. Every key except 0 is ignored; 0 returns. */
+/* 0 in the viewer opens a small real calculator (src/calc_ui.c); EXIT returns. */
 static void fake_calc(void)
 {
-    fakecalc_draw();
-    dupdate();
-    while(getkey().key != KEY_0) {}
+    calc_run();
 }
 
 /* ---- viewer / browser (mutually recursive for links and the index) -------- */

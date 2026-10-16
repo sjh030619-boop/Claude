@@ -415,6 +415,7 @@ def main():
     a = ap.parse_args()
     ns = noteset.get_set(a.set_id)
     used = build_notes(ns["notes"])
+    used |= {ord(c) for c in "0123456789.+-()^E\u00d7\u00f7\u00b2\u03c0\u221a=sincotanlgeAMRDadF1:"} | {ord(c) for c in "노트Syntax ERROR"}   # calculator screen
     build_font(a.font, used, a.only_used)
     # add-in name / output file for CMake (see CMakeLists.txt)
     # menu icon: sets/<id>/icon.json {"text": ..., "art": net|gear|book}; default = add-in name + book

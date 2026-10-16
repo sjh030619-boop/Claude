@@ -15,7 +15,7 @@ int app_main(void);
 
 static unsigned char fb[64][128];
 static const char *dir = ".";
-static char keys[256][8];
+static char keys[256][16];
 static int nkeys, kpos, frame;
 static int exits_after_end;
 
@@ -41,14 +41,21 @@ void dupdate(void) {
 
 static int code(const char *s) {
     static const char *n[] = {"", "EXIT", "EXE", "UP", "DOWN", "LEFT", "RIGHT", "F1", "F2",
-                              "DEL", "AC", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "F3"};
-    for(int i = 1; i < 22; i++) if(!strcmp(s, n[i])) return i;
+                              "DEL", "AC", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "F3",
+                              "DOT", "EXP", "NEG", "PLUS", "MINUS", "MUL", "DIV", "LP", "RP",
+                              "SQUARE", "POWER", "LOG", "LN", "SIN", "COS", "TAN"};
+    for(int i = 1; i < 38; i++) if(!strcmp(s, n[i])) return i;
     fprintf(stderr, "bad key %s\n", s); exit(2);
 }
 
 key_event_t getkey(void) {
     key_event_t e;
-    if(kpos < nkeys) e.key = code(keys[kpos++]);
+    e.mod = e.shift = e.alpha = 0;
+    if(kpos < nkeys) {
+        const char *k = keys[kpos++];
+        if(k[0] == 'S' && k[1] == '-') { e.mod = e.shift = 1; k += 2; }     /* S-EXP = SHIFT + EXP */
+        e.key = code(k);
+    }
     else { e.key = KEY_EXIT; if(++exits_after_end > 50) { fprintf(stderr, "runaway\n"); exit(3); } }
     return e;
 }
@@ -57,7 +64,7 @@ int main(int argc, char **argv) {
     if(argc > 1) dir = argv[1];
     if(argc > 2) {
         char *s = strdup(argv[2]);
-        for(char *t = strtok(s, " "); t && nkeys < 256; t = strtok(NULL, " ")) strncpy(keys[nkeys++], t, 7);
+        for(char *t = strtok(s, " "); t && nkeys < 256; t = strtok(NULL, " ")) strncpy(keys[nkeys++], t, 15);
     }
     app_main();
     printf("frames: %d, keys consumed: %d/%d\n", frame, kpos, nkeys);
