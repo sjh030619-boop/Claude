@@ -41,10 +41,10 @@ void dupdate(void) {
 
 static int code(const char *s) {
     static const char *n[] = {"", "EXIT", "EXE", "UP", "DOWN", "LEFT", "RIGHT", "F1", "F2",
-                              "DEL", "AC", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "F3",
+                              "DEL", "AC", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "F3", "F6",
                               "DOT", "EXP", "NEG", "PLUS", "MINUS", "MUL", "DIV", "LP", "RP",
                               "SQUARE", "POWER", "LOG", "LN", "SIN", "COS", "TAN"};
-    for(int i = 1; i < 38; i++) if(!strcmp(s, n[i])) return i;
+    for(int i = 1; i < 39; i++) if(!strcmp(s, n[i])) return i;
     fprintf(stderr, "bad key %s\n", s); exit(2);
 }
 

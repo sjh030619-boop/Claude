@@ -5,6 +5,7 @@
 #include <gint/keyboard.h>
 
 #include "calc.h"
+#include "fakecalc.h"
 #include "hangul.h"
 
 #define MAXT 48
@@ -14,7 +15,8 @@ static unsigned char tok[MAXT];
 static int ntok, cur;
 static unsigned char last_tok[MAXT];
 static int last_n;
-static char h_expr[2][120], h_res[2][28];
+#define NH 3
+static char h_expr[NH][120], h_res[NH][28];
 static double ans;
 static int deg;
 static const char *msg;
@@ -54,23 +56,36 @@ static void del(void)
     ntok--;
 }
 
+/* Layout of the Run-Mat screen: 8 px per line (expression, result, expression, ...), the line being
+   edited at y = 48, and the function-key bar (JUMP DEL >MAT MATH) at y = 56..63, copied from the
+   original screenshot bitmap. The Galmuri 7 px glyphs have their ink 2 px below the cell top. */
+#define INK 2
+
 static void draw(void)
 {
-    char buf[130];
+    char buf[130], pre[130];
     dclear(C_WHITE);
-    for(int i = 0; i < 2; i++) {
-        hg_draw_text(0, i * 20, 1000, 0, h_expr[i]);
+    for(int i = 0; i < NH; i++) {
+        hg_draw_text(0, i * 16 - INK, 1000, 0, h_expr[i]);
         int w = hg_text_width(h_res[i]);
-        hg_draw_text(128 - w, i * 20 + 10, 1000, 0, h_res[i]);
+        hg_draw_text(128 - w, i * 16 + 8 - INK, 1000, 0, h_res[i]);
     }
     text_of(buf, ntok);
-    char pre[130];
     text_of(pre, cur);
-    int wc = hg_text_width(pre), off = wc > 118 ? wc - 118 : 0;
-    hg_draw_text(-off, 40, 1000, 0, buf);
-    dline(wc - off, 41, wc - off, 49, C_BLACK);
-    if(msg) hg_draw_text(0, 51, 1000, 0, msg);
-    else hg_draw_text(0, 51, 1000, 0, deg ? "Deg  F1 Rad  EXIT 노트" : "Rad  F1 Deg  EXIT 노트");
+    int wc = hg_text_width(pre), off = wc > 120 ? wc - 120 : 0;
+    hg_draw_text(-off, 48 - INK, 1000, 0, buf);
+    if(cur == ntok) {                                          /* block cursor at the end of the line */
+        for(int k = 0; k < 6; k++) { dpixel(wc - off + k, 48, C_BLACK); dpixel(wc - off + k, 54, C_BLACK); }
+        for(int k = 0; k < 7; k++) { dpixel(wc - off, 48 + k, C_BLACK); dpixel(wc - off + 5, 48 + k, C_BLACK); }
+    } else dline(wc - off, 48, wc - off, 54, C_BLACK);
+    if(msg) {                                                   /* error text on the edited line */
+        drect(128 - hg_text_width(msg) - 2, 47, 127, 55, C_WHITE);
+        hg_draw_text(128 - hg_text_width(msg), 48 - INK, 1000, 0, msg);
+    }
+    for(int y = 56; y < 64; y++)                                /* JUMP DEL >MAT MATH */
+        for(int x = 0; x < 128; x++)
+            if(fakecalc_bits[y][x >> 3] & (0x80 >> (x & 7))) dpixel(x, y, C_BLACK);
+    hg_tiny_text(106, 58, deg ? "DEG" : "RAD");               /* angle unit; F6 toggles */
     dupdate();
 }
 
@@ -79,13 +94,15 @@ static void execute(void)
     double v;
     int r = calc_eval(tok, ntok, deg, ans, &v);
     if(r != CALC_OK) {
-        msg = r == CALC_SYNTAX ? "Syntax ERROR (<>로 수정)" : "Ma ERROR (<>로 수정)";
+        msg = r == CALC_SYNTAX ? "Syntax ERROR" : "Ma ERROR";
         return;
     }
-    memcpy(h_expr[0], h_expr[1], sizeof h_expr[0]);
-    memcpy(h_res[0], h_res[1], sizeof h_res[0]);
-    text_of(h_expr[1], ntok);
-    calc_format(v, h_res[1]);
+    for(int i = 0; i + 1 < NH; i++) {
+        memcpy(h_expr[i], h_expr[i + 1], sizeof h_expr[i]);
+        memcpy(h_res[i], h_res[i + 1], sizeof h_res[i]);
+    }
+    text_of(h_expr[NH - 1], ntok);
+    calc_format(v, h_res[NH - 1]);
     ans = v;
     memcpy(last_tok, tok, ntok);
     last_n = ntok;
@@ -110,7 +127,8 @@ void calc_run(void)
         case KEY_LEFT: if(cur > 0) cur--; break;
         case KEY_RIGHT: if(cur < ntok) cur++; break;
         case KEY_UP: memcpy(tok, last_tok, last_n); ntok = cur = last_n; break;
-        case KEY_F1: deg = !deg; break;
+        case KEY_F2: del(); break;                     /* DEL on the function-key bar */
+        case KEY_F6: deg = !deg; break;
         case KEY_0: ins(CT_0); break;
         case KEY_1: ins(CT_1); break;
         case KEY_2: ins(CT_2); break;

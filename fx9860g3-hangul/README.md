@@ -79,12 +79,13 @@ WSL2(Ubuntu) 가 없으면 안내가 나옵니다(`wsl --install -d Ubuntu` 후 
 - **0 = 계산기**: 본문에서 숫자 `0` 을 누르면 작은 **진짜 계산기**가 뜹니다 (Run-Mat 처럼 한 줄 입력). **EXIT** 로 노트에 돌아옵니다.
   Casio fx-9860GIII 설명서(v3.21)의 계산 규칙을 따릅니다.
   - 키: `0~9 .  + − × ÷  ( )  (−)  x²  ^  EXP  sin cos tan  log ln`, `SHIFT`+`EXP`=π, `SHIFT`+`(−)`=Ans, `SHIFT`+`x²`=√, `SHIFT`+`log`=10^x, `SHIFT`+`ln`=e^x
-    (키 위 노란 글자와 같음), `DEL` 한 글자 지움, `AC` 식 지움, `← →` 커서, `↑` 직전 식 불러오기, `F1` Rad/Deg 전환 (기본 Rad), `EXE` 계산.
+    (키 위 노란 글자와 같음), `DEL`(또는 `F2`) 한 글자 지움, `AC` 식 지움, `← →` 커서, `↑` 직전 식 불러오기, `F6` Rad/Deg 전환 (기본 Rad, 오른쪽 아래에 RAD/DEG 표시), `EXE` 계산.
+    화면은 원래 가짜 화면과 같은 구성입니다: 8px 줄 간격으로 식과 결과 3쌍, 입력 줄(네모 커서), 맨 아래 `JUMP DEL ▶MAT MATH` 기능 줄(스크린샷 비트맵 그대로).
   - 우선순위: 괄호·함수 인수 → x², ^ → (−) → 곱셈 기호 생략(`2π`, `3(5+6)`, `2sin(30)`) → × ÷ → + − (그래서 `6÷2(1+2)=1`, `−2^2=−4`).
   - 표시: 유효숫자 10자리, Norm 1 (`|x|<0.01` 또는 `≥10^10` 이면 `2.5E-03`, `1.2E+12`). 빈 줄에서 `+ − × ÷ ^ x²` 를 누르면 `Ans` 가 앞에 붙습니다.
   - 오류: `Syntax ERROR`(식 오류), `Ma ERROR`(0 으로 나눔, 정의역 밖, 범위 초과). 식은 그대로 두고 고칠 수 있습니다.
   - 한계: 분수 입력·행렬·방정식·통계는 없습니다. 본체와 마지막 자리 반올림이 다를 수 있습니다. 호스트 시험: `gcc -Isrc tools/calc_test.c src/calc_eval.c -o calc_test && ./calc_test`.
-  - 한 화면에 최근 계산 2개(식과 결과)와 입력 줄이 보입니다. 앱을 끄기 전까지 Ans 와 최근 식은 유지됩니다.
+  - 한 화면에 최근 계산 3개(식과 결과)와 입력 줄이 보입니다. 앱을 끄기 전까지 Ans 와 최근 식은 유지됩니다.
 
 ## 글자 위 모자(ŷ)·막대(ȳ)·화살표(v⃗)
 `ŷ` `ȳ` `Ŷ` 처럼 글자 위에 모자(^)나 막대를 씌운 글자를 그대로 쓰면 됩니다. 빌더가 기본 글자 + 결합 문자
@@ -129,7 +130,7 @@ WSL2(Ubuntu) 가 없으면 안내가 나옵니다(`wsl --install -d Ubuntu` 후 
 ## PC 에서 동작 시뮬레이션 (gint 스텁)
 ```
 gcc -Isrc -Itools/sim -Dmain=app_main tools/sim/sim.c src/main.c src/hangul.c \
-    src/font_data.c src/notes.c src/calc_eval.c src/calc_ui.c -o sim
+    src/font_data.c src/notes.c src/fakecalc.c src/fakecalc_data.c src/calc_eval.c src/calc_ui.c -o sim
 mkdir out && ./sim out "0 EXE EXE EXE DOWN DOWN EXE"    # 키: EXIT EXE UP DOWN LEFT RIGHT F1 F2 F3 DEL AC 0-9 DOT EXP NEG PLUS MINUS MUL DIV LP RP SQUARE POWER LOG LN SIN COS TAN (S-EXP = SHIFT+EXP)
 python3 tools/sim/sheet.py out sheet.png 3             # 프레임을 한 장으로
 ```
