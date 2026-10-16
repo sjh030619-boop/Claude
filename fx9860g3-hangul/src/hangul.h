@@ -60,7 +60,8 @@ int hg_tiny_text(int x, int y, const char *ascii);
    fractions and `_{..}` / `^{..}` scripts (see hangul.c). */
 int hg_line_formula(const char *line);       /* 1 if the line (up to '\n') is a formula line */
 int hg_formula_width(const char *line);      /* its width in pixels */
-int hg_line_y(const char *page_text, int line);   /* y of the top of line `line` (0-based) on the page */
+int hg_line_y(const char *page_text, int line);
+int hg_line_table(const char *line);         /* 1 if the line is a table row (contains U+2502) */   /* y of the top of line `line` (0-based) on the page */
 
 /* Provided by the host program: set one black pixel. Must clip. */
 void hg_plot(int x, int y);

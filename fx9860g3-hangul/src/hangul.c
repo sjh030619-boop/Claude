@@ -221,6 +221,83 @@ static int is_sym(const char *s, uint8_t b2, uint8_t b3)
     return (uint8_t)s[0] == 0xE2 && (uint8_t)s[1] == b2 && (uint8_t)s[2] == b3;
 }
 
+/* ---- table rows -------------------------------------------------------------
+   Consecutive lines that contain U+2502 (box vertical) form a table; the cells of a row are separated
+   by it. Column widths = the widest cell of each column; the viewer draws a frame, vertical rules and a
+   rule under every row. A row is 11 px tall, the table has 1 px extra at the bottom (n rows = 11n + 1).
+   No wrapping; cell text may use `_{..}` / `^{..}` (small font). */
+#define TBL_MAXC 6
+#define TBL_ROW_H 11
+
+static int line_has_table(const char *s)
+{
+    for(; *s && *s != '\n' && *s != '\f'; s++)
+        if(is_sym(s, 0x94, 0x82)) return 1;
+    return 0;
+}
+
+int hg_line_table(const char *s) { return line_has_table(s); }
+
+static const char *line_end(const char *s)
+{
+    while(*s && *s != '\n' && *s != '\f') s++;
+    return s;
+}
+
+/* Draws (draw = 1) or measures the table that starts at line s. Returns the end of its last row. */
+static const char *table_group(int x, int y, const char *s, int draw, int *height, int *width)
+{
+    int w[TBL_MAXC] = {0}, ncol = 0, nrow = 0;
+    const char *p = s, *last = s;
+
+    while(line_has_table(p)) {
+        const char *e = line_end(p), *a = p;
+        int c = 0;
+        for(;;) {
+            const char *b = a;
+            while(b < e && !is_sym(b, 0x94, 0x82)) b++;
+            if(c < TBL_MAXC) {
+                int cw = run(0, 0, a, b, 0, 0);
+                if(cw > w[c]) w[c] = cw;
+            }
+            c++;
+            if(b >= e) break;
+            a = b + 3;
+        }
+        if(c > TBL_MAXC) c = TBL_MAXC;
+        if(c > ncol) ncol = c;
+        nrow++;
+        last = e;
+        if(*e != '\n') break;
+        p = e + 1;
+    }
+    int xs[TBL_MAXC + 1];
+    xs[0] = 0;
+    for(int c = 0; c < ncol; c++) xs[c + 1] = xs[c] + w[c] + 3;
+    if(draw) {
+        int total = xs[ncol], hh = nrow * TBL_ROW_H;
+        for(int i = 0; i <= nrow; i++)
+            for(int k = 0; k <= total; k++) hg_plot(x + k, y + i * TBL_ROW_H);
+        for(int c = 0; c <= ncol; c++)
+            for(int k = 0; k <= hh; k++) hg_plot(x + xs[c], y + k);
+        p = s;
+        for(int i = 0; i < nrow; i++) {
+            const char *e = line_end(p), *a = p;
+            for(int c = 0; c < ncol; c++) {
+                const char *b = a;
+                while(b < e && !is_sym(b, 0x94, 0x82)) b++;
+                run(x + xs[c] + 2, y + i * TBL_ROW_H + 1, a, b, 0, 1);
+                if(b >= e) break;
+                a = b + 3;
+            }
+            p = e + 1;
+        }
+    }
+    *height = nrow * TBL_ROW_H + 1;
+    *width = xs[ncol] + 1;
+    return last;
+}
+
 /* Draws (or measures, draw = 0) the formula line starting at s with its top at y. Returns the end of the line
    ('\n', '\f' or NUL) and stores the width in *width. */
 static const char *formula_line(int x, int y, const char *s, int draw, int *width)
@@ -339,7 +416,13 @@ int hg_line_y(const char *s, int line)
 {
     int y = 0;
     while(line-- > 0) {
-        y += line_has_formula(s) ? FORMULA_H : hg_height;
+        if(line_has_table(s)) {
+            const char *e = line_end(s);
+            int last_row = !(*e == '\n' && line_has_table(e + 1));
+            y += TBL_ROW_H + (last_row ? 1 : 0);
+        } else {
+            y += line_has_formula(s) ? FORMULA_H : hg_height;
+        }
         while(*s && *s != '\n' && *s != '\f') s++;
         if(*s != '\n') break;
         s++;
@@ -357,6 +440,13 @@ static int draw_impl(int x, int y, int width, int line_gap, const char *s,
         int n;
         if(at_start) {
             at_start = 0;
+            if(line_has_table(s)) {
+                int th, tw;
+                s = table_group(x, y, s, 1, &th, &tw);
+                last_h = th;
+                if(*s == '\n') { s++; y += th + line_gap; at_start = 1; last_h = hg_height; }
+                continue;
+            }
             if(line_has_formula(s)) {
                 int w;
                 s = formula_line(x, y, s, 1, &w);

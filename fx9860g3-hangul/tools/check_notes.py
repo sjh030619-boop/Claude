@@ -11,6 +11,9 @@ Checks (E = error, W = warning):
      6 px gutter for the '>' marker; real glyph advances from the bitmap font).
      On a link line the "->F/N:P" token is hidden when the line has exactly one link and a title
      in front of it (title not ending in ':'), so the width is measured without the token.
+  E  table rows (lines with '│' U+2502, cells separated by it; consecutive rows = one table): width
+     = widest cell per column + 3 px per column + 1 px must fit (128 / 122 on link pages), at most 6
+     columns, no '$' formula or link in a row; a table row is 11 px tall (+1 px under the table)
   E  page too tall: 10 px per line (6 lines) but a formula line (contains '$') is 22 px tall
      (see formula_width: `$...$` with {분자;분모} fractions and _{..}/^{..} scripts); '$' must be paired,
      a formula line cannot contain a link
@@ -37,6 +40,7 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 SCREEN_W, SCREEN_H = 128, 64
 MAX_PAGES, MAX_LINKS, MAX_NAME = 9, 8, 14
+TABLE_ROW_H, TABLE_MAX_COLS = 11, 6
 MARK_W = 6  # '>' gutter the add-in reserves on pages that contain links
 TINY_ADV = 4
 
@@ -308,15 +312,44 @@ def check(nd, font):
                 W(f"{where}: 파일명이 {MAX_NAME}자 초과 ({len(title)}자)")
             for pi, page in enumerate(pages, 1):
                 lines = page.split("\n")
-                nform = sum(1 for l in lines if "$" in l)
-                height = len(lines) * HEIGHT[font] + nform * 12     # a formula line is 2 lines + 2 px
+                is_tab = ["│" in l for l in lines]
+                nform = sum(1 for l, t in zip(lines, is_tab) if "$" in l and not t)
+                ntab = sum(is_tab)
+                ngrp = sum(1 for i, t in enumerate(is_tab) if t and (i == 0 or not is_tab[i - 1]))
+                # normal 10 px; formula line 22 px; table row 11 px, +1 px under each table
+                height = ((len(lines) - ntab) * HEIGHT[font] + nform * 12 + ntab * TABLE_ROW_H + ngrp)
                 if height > SCREEN_H:
-                    extra = f", 수식 줄 {nform}개(각 {HEIGHT[font] + 12}px)" if nform else ""
+                    extra = (f", 수식 줄 {nform}개(각 {HEIGHT[font] + 12}px)" if nform else "") + \
+                            (f", 표 줄 {ntab}개(각 {TABLE_ROW_H}px)" if ntab else "")
                     E(f"{where} 쪽{pi}: 높이 {height}px > {SCREEN_H}px ({len(lines)}줄{extra})")
                 missing = set()
                 has_link = bool(link_re.search(page))
                 limit = SCREEN_W - (MARK_W if has_link else 0)
-                for li, line in enumerate(lines, 1):
+                li = 0
+                while li < len(lines):
+                    line = lines[li]
+                    li += 1
+                    if "│" in line:                      # table: handled per group of consecutive rows
+                        grp = [line]
+                        while li < len(lines) and "│" in lines[li]:
+                            grp.append(lines[li])
+                            li += 1
+                        cells = [[c for c in r.split("│")] for r in grp]
+                        ncol = max(len(r) for r in cells)
+                        colw = [0] * ncol
+                        for r in cells:
+                            for ci, cell in enumerate(r):
+                                colw[ci] = max(colw[ci], line_width(cell, adv, missing))
+                        tw = sum(colw) + 3 * ncol + 1
+                        first = li - len(grp) + 1
+                        if ncol > TABLE_MAX_COLS:
+                            E(f"{where} 쪽{pi} 줄{first}: 표 열 {ncol}개 (최대 {TABLE_MAX_COLS}개) | {grp[0]}")
+                        if tw > limit:
+                            E(f"{where} 쪽{pi} 줄{first}: 표 폭 {tw}px > {limit}px | {grp[0]}")
+                        for r in grp:
+                            if "$" in r or link_re.search(r):
+                                E(f"{where} 쪽{pi} 줄{first}: 표 줄에는 수식($)이나 링크를 둘 수 없음 | {r}")
+                        continue
                     if "$" in line:
                         ferr = []
                         w = formula_width(line, adv, missing, ferr)
