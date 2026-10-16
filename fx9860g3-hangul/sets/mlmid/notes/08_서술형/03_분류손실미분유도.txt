@@ -24,11 +24,11 @@ sigmoid BCE 유도 2 (계속)
 ---
 softmax CE 유도 1
 $p_{k}={e^{zk};∑e^{zj}}$
-L=-∑y_{k} ln p_{k}
+$L=-∑_{k}y_{k}ln(p_{k})$
 dp_{k}/dz_{j}: k=j 이면 p_{k}(1-p_{k})
-k≠j 이면 -p_{k}p_{j}
 ---
 softmax CE 유도 1 (계속)
+k≠j 이면 -p_{k}p_{j}
 교재밖: 위 소프트맥스 미분 공식
 ---
 softmax CE 유도 2
@@ -44,7 +44,7 @@ softmax CE 유도 2 (계속)
 MSE 유도
 L=(ŷ-y)², ŷ=wx+b
 dL/dw=2(ŷ-y)x, dL/db=2(ŷ-y)
-n 개 평균 $dJ/dw={2;n}∑(ŷ-y)x$
+n 개 평균 $dJ/dw={2;n}∑_{i=1}^{n}(ŷ_{i}-y_{i})x_{i}$
 꼴: 예측-실제 곱하기 입력
 ---
 공통 결론
