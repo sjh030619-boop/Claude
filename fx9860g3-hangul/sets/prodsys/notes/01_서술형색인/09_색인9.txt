@@ -1,0 +1,52 @@
+[색인 P-P]
+PLC(5단계 설명) →3/10:7
+PLC(각 주기 제품 예) →3/32:6
+PLC(곡선 그림) →3/10:12
+PLC(단계별 특징표) →3/10:13
+PLC(단계표) →3/10:2
+---
+[색인 P-P]
+PLC(정의) →3/10:4
+PLC(제품 적용 답안) →3/32:2
+PLC(제품별 주기 예) →3/32:6
+PLC(짧아지는 이유) →3/10:4
+PLC(최근 변화,짧아짐) →3/10:4
+---
+[색인 P-p]
+PLC(판정 답안 예) →3/33:4
+PLC(판정 방법) →3/33:2
+process chart(공정도) →3/54:5
+product liability(PL) →3/37
+product life cycle(PLC) →3/10
+---
+[색인 p-Q]
+product planning(용어) →3/63:6
+product planning(제품계획) →3/38
+production design →3/36
+production scheduling →3/63:2
+QCD(답안) →3/22:2
+---
+[색인 Q-r]
+QCD(대응표) →3/22:6
+redundancy(병렬 계산) →3/12:6
+redundancy(신뢰도) →3/34:2
+reliability(신뢰도) →3/11
+right-left-hand chart →3/53
+---
+[색인 R-R]
+Roller blade(부품전개) →3/57
+Roller blade(숫자 바뀜 일반식) →3/57:15
+Roller blade(재고 A) →3/57:19
+Roller blade(재고 B) →3/57:22
+Roller blade(재고 C 200켤레) →3/57:25
+---
+[색인 R-s]
+Roller blade(조건 BOM) →3/57:2
+single-level bill of materials →3/06:2
+single-level BOM →3/06:2
+strategic planning →3/03
+subassembly(중간 조립품) →3/62
+---
+[색인 t-U]
+tactical planning →3/03
+UNC 나사(Opitz) →3/51:5

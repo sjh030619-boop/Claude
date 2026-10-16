@@ -1,0 +1,49 @@
+[생산계획 3단계]
+이럴때:총괄,공정,일정계획
+총괄:무엇을 얼마나(단기)
+공정:어떤 공정,어떤 순서
+일정:언제,누가,무엇으로
+다음:실행→통제
+---
+[생산계획 3단계 답안 1/4]
+전술적 생산관리의 계획 단계는
+세 가지로 이루어진다.
+총괄생산계획(aggregate
+production planning)은 단기에
+어떤 제품을 얼마나 만들지(what
+---
+[생산계획 3단계 답안 2/4]
+product and how many)
+정하는 계획이다.
+공정계획(production process
+planning)은 어떤 공정을 어떤
+순서로(what process and in
+---
+[생산계획 3단계 답안 3/4]
+what order) 거칠지 정하는
+계획이다.
+일정계획(production
+scheduling)은 언제,누가,
+무엇으로(when,who,with what)
+---
+[생산계획 3단계 답안 4/4]
+작업할지 정하는 계획이다.
+이후 생산
+실행(implementation)과 생산
+통제(control)가 이어진다.
+---
+[용어 한 줄 1/2]
+product
+planning=제품계획(무엇을 개발)
+aggregate=총괄(품목,수량)
+process planning=공정(순서)
+---
+[용어 한 줄 2/2]
+scheduling=일정(언제,누가)
+MRP=자재소요계획(자재 종류,
+시기,양)
+---
+[관련 문서]
+전술적 생산관리 →3/31
+제품계획 →3/38
+MRP(자재소요계획) →3/48

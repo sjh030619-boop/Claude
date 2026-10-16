@@ -1,0 +1,62 @@
+[색인 G-G]
+GT(서술 답안) →3/04:2
+GT(용어 한 줄) →3/04:9
+GT(장점) →3/04:2
+GT(적용 효과) →3/04:2
+GT(한계) →3/35:2
+---
+[색인 i-J]
+industrial design →3/36
+interchangeability →3/20
+interchangeability(원칙) →3/20
+JIT(서술 답안) →3/09:2
+JIT(용어 kanban 등) →3/09:9
+---
+[색인 J-l]
+JIT(장단점) →3/09:2
+JIT(한계점) →3/09:2
+Just-in-Time(JIT) →3/09
+kanban(뜻) →3/09:9
+learning curve →3/54:2
+---
+[색인 L-M]
+Logistic system →3/16
+logistics(로지스틱) →3/16
+material handling →3/17
+model(정의,종류) →3/19
+MRP II(확장) →3/48
+---
+[색인 M-o]
+MRP(서술 답안) →3/48:2
+MRP(설명) →3/48
+NC 기계(비김점) →3/52
+necessary evil →3/15
+operational planning →3/03
+---
+[색인 O-O]
+Opitz code →3/13
+Opitz(13232 읽기) →3/51:2
+Opitz(1자리 L/D) →3/13:5
+Opitz(2자리 바깥 형상) →3/13:6
+Opitz(3자리 안쪽 형상) →3/13:8
+---
+[색인 O-O]
+Opitz(4자리 평면 가공) →3/13:10
+Opitz(5자리 보조 구멍) →3/13:12
+Opitz(그림 기어) →3/51:8
+Opitz(그림 나사 축) →3/51:5
+Opitz(그림 모양별 숫자) →3/51:20
+---
+[색인 O-O]
+Opitz(그림 모터형) →3/51:14
+Opitz(그림 부품 2개) →3/51:17
+Opitz(그림 플랜지) →3/51:11
+Opitz(도면 읽는 순서) →3/51:3
+Opitz(부여 절차) →3/13:2
+---
+[색인 O-P]
+Opitz(판단 팁) →3/13:13
+part classification →3/04:9
+part explosion →3/05
+part family(뜻) →3/04:9
+PL(정의 사례 답안) →3/37:2

@@ -1,0 +1,186 @@
+[부품전개(Roller blade)]
+이럴때:Roller blade,켤레
+켤레=Roller blade 1개
+BOM 4표+재고표가 주어짐
+공용:Roller assembly,Screw
+재고 Screw 값으로 세트 구분
+---
+[조건:BOM(단일수준) 1/4]
+Roller blade 아래:
+- Left blade 1
+- Right blade 1
+Left blade 아래:
+---
+[조건:BOM(단일수준) 2/4]
+- Left shoe 1
+- Roller assembly 1
+- Screw 4
+Right blade 아래:
+---
+[조건:BOM(단일수준) 3/4]
+- Right shoe 1
+- Roller assembly 1
+- Screw 4
+Roller assembly 아래:
+---
+[조건:BOM(단일수준) 4/4]
+- Roller track 1
+- Wheel 4
+- Screw 2
+- Brake pad 1
+---
+[조건:재고 A(250켤레) 1/3]
+주문: Roller blade 250
+재고:
+Roller blade 50
+Left blade 0
+Right blade 0
+---
+[조건:재고 A(250켤레) 2/3]
+Left shoe 100
+Roller assembly 30
+Right shoe 100
+Roller track 100
+Wheel 800
+---
+[조건:재고 A(250켤레) 3/3]
+Screw 1,000
+Brake pad 400
+주의:세트 구분:Screw 재고
+1000
+---
+[조건:재고 B(250켤레) 1/3]
+주문: Roller blade 250
+재고:
+Roller blade 50
+Left blade 0
+Right blade 0
+---
+[조건:재고 B(250켤레) 2/3]
+Left shoe 50
+Roller assembly 30
+Right shoe 200
+Roller track 100
+---
+[조건:재고 B(250켤레) 3/3]
+Wheel 800
+Screw 800
+Brake pad 370
+주의:세트 구분:Screw 재고 800
+---
+[조건:재고 C(200켤레) 1/3]
+주문: Roller blade 200
+재고:
+Roller blade 50
+Left blade 0
+Right blade 0
+---
+[조건:재고 C(200켤레) 2/3]
+Left shoe 50
+Roller assembly 30
+Right shoe 200
+Roller track 100
+Wheel 868
+---
+[조건:재고 C(200켤레) 3/3]
+Screw 200
+Brake pad 370
+주의:세트 구분:Screw 200,
+Wheel 868
+---
+[숫자가 바뀌면(일반식) 1/4]
+Roller blade총=주문
+Left blade총=Roller blade순
+Right blade총=Roller blade순
+Left shoe총=Left blade순
+Roller assembly총=Left
+---
+[숫자가 바뀌면(일반식) 2/4]
+blade순+Right blade순
+Screw총=4×Left
+blade순+4×Right
+blade순+2×Roller
+assembly순
+---
+[숫자가 바뀌면(일반식) 3/4]
+Right shoe총=Right blade순
+Roller track총=Roller
+assembly순
+Wheel총=4×Roller
+assembly순
+---
+[숫자가 바뀌면(일반식) 4/4]
+Brake pad총=Roller
+assembly순
+각 품목 순=총-재고,음수면
+0(잉여)
+---
+[답:재고 A(250켤레) 1/3]
+(총소요/재고/순소요,(+)=잉여)
+Roller blade 250/50/200
+Left blade 200/0/200
+Right blade 200/0/200
+---
+[답:재고 A(250켤레) 2/3]
+Left shoe 200/100/100
+Roller assembly 400/30/370
+Right shoe 200/100/100
+Roller track 370/100/270
+---
+[답:재고 A(250켤레) 3/3]
+Wheel 1,480/800/680
+Screw 2,340/1,000/1,340
+Brake pad 370/400/0(+30)
+---
+[답:재고 B(250켤레) 1/3]
+(총소요/재고/순소요,(+)=잉여)
+Roller blade 250/50/200
+Left blade 200/0/200
+Right blade 200/0/200
+---
+[답:재고 B(250켤레) 2/3]
+Left shoe 200/50/150
+Roller assembly 400/30/370
+Right shoe 200/200/0
+Roller track 370/100/270
+---
+[답:재고 B(250켤레) 3/3]
+Wheel 1,480/800/680
+Screw 2,340/800/1,540
+Brake pad 370/370/0
+---
+[답:재고 C(200켤레) 1/3]
+(총소요/재고/순소요,(+)=잉여)
+Roller blade 200/50/150
+Left blade 150/0/150
+Right blade 150/0/150
+---
+[답:재고 C(200켤레) 2/3]
+Left shoe 150/50/100
+Roller assembly 300/30/270
+Right shoe 150/200/0(+50)
+Roller track 270/100/170
+---
+[답:재고 C(200켤레) 3/3]
+Wheel 1,080/868/212
+Screw 1,740/200/1,540
+Brake pad 270/370/0(+100)
+---
+[답안 쓰는 법,주의 1/2]
+켤레=Roller blade
+1개(왼쪽+오른쪽 1벌)
+공용부품:Roller assembly(양쪽
+blade),Screw(세 곳)
+Screw총=4×Left순+4×
+---
+[답안 쓰는 법,주의 2/2]
+Right순+2×Roller assembly순
+단일수준 BOM 표 → 위에서부터
+전개 → 품목별 표
+재고가 남는 품목은 0과 잉여를
+같이 쓴다
+---
+[관련 문서]
+부품전개(소요량 계산) →3/05
+부품전개(공용부품) →3/08
+BOM(정의,작성) →3/06
