@@ -30,11 +30,17 @@ readme = """노트 검사기 (CASIO fx-9860G III 노트용)
 번호 중복, 없는 링크 대상(폴더/파일/쪽), 쪽당 링크 8개, 파일·폴더 이름 문자,
 BOM, 쓰지 않기로 한 문자, set.json(notes 옆, name 은 영문 8자 이하).
 추가 파일 없이 이 폴더의 파일 두 개(check_notes.py, advances_7.json)만 있으면 동작한다.
+
+그림 (fig_tool.py, Pillow 필요):
+  python3 fig_tool.py 원본그림.jpg notes/figures/이름.png        # 128x54 안으로 흑백 변환 + 미리보기
+노트 안에 [그림 이름] 한 줄(줄 전체)을 쓰면 그 자리에 그림이 그려진다.
+검사기는 notes/figures/이름.png 존재, 폭(128, 링크 쪽 122)·높이(64)와 쪽 높이 합(64px)을 확인한다.
 """
 
 out = out_dir / "check_bundle.zip"
 with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
     z.write(Path(check_notes.__file__), "check_notes.py")
     z.writestr("advances_7.json", adv_json)
+    z.write(ROOT / "tools" / "fig_tool.py", "fig_tool.py")
     z.writestr("README.txt", readme)
 print(f"wrote {out} ({out.stat().st_size // 1024} KB, {len(adv)} glyph widths)")

@@ -14,6 +14,8 @@ Checks (E = error, W = warning):
   E  table rows (lines with '│' U+2502, cells separated by it; consecutive rows = one table): width
      = widest cell per column + 3 px per column + 1 px must fit (128 / 122 on link pages), at most 6
      columns, no '$' formula or link in a row; a table row is 11 px tall (+1 px under the table)
+  E  figure line "[그림 이름]" (the whole line): notes/figures/<이름>.png must exist (PNG, black on white,
+     width <= 128, <= 122 on link pages, height <= 64); its height counts in the page height
   E  page too tall: 10 px per line (6 lines) but a formula line (contains '$') is 22 px tall
      (see formula_width: `$...$` with {분자;분모} fractions and _{..}/^{..} scripts); '$' must be paired,
      a formula line cannot contain a link
@@ -122,6 +124,21 @@ def line_width(line, adv, missing):
 
 
 TOKEN_RE = re.compile(r"→\d+/\d+(?::\d+)?")
+
+
+FIG_RE = re.compile(r"^\[그림 ([^\]\n]+)\]\s*$")
+
+
+def fig_size(nd, name):
+    """(w, h) of notes/figures/<name>.png read from the PNG header (no Pillow needed), or None."""
+    p = nd / "figures" / f"{name}.png"
+    try:
+        head = p.read_bytes()[:24]
+    except OSError:
+        return None
+    if head[:8] != b"\x89PNG\r\n\x1a\n" or head[12:16] != b"IHDR":
+        return None
+    return int.from_bytes(head[16:20], "big"), int.from_bytes(head[20:24], "big")
 
 
 def segment_tall(seg):
@@ -312,15 +329,23 @@ def check(nd, font):
                 W(f"{where}: 파일명이 {MAX_NAME}자 초과 ({len(title)}자)")
             for pi, page in enumerate(pages, 1):
                 lines = page.split("\n")
+                figs = []
+                for l in lines:
+                    fm = FIG_RE.match(l)
+                    figs.append(fig_size(nd, fm.group(1).strip()) if fm else False)
+                nfig_h = sum(f[1] for f in figs if f)
+                nfig = sum(1 for f in figs if f is not False)
                 is_tab = ["│" in l for l in lines]
                 nform = sum(1 for l, t in zip(lines, is_tab) if "$" in l and not t)
                 ntab = sum(is_tab)
                 ngrp = sum(1 for i, t in enumerate(is_tab) if t and (i == 0 or not is_tab[i - 1]))
                 # normal 10 px; formula line 22 px; table row 11 px, +1 px under each table
-                height = ((len(lines) - ntab) * HEIGHT[font] + nform * 12 + ntab * TABLE_ROW_H + ngrp)
+                height = (((len(lines) - ntab - nfig) * HEIGHT[font]) + nform * 12 + ntab * TABLE_ROW_H + ngrp
+                          + nfig_h)
                 if height > SCREEN_H:
                     extra = (f", 수식 줄 {nform}개(각 {HEIGHT[font] + 12}px)" if nform else "") + \
-                            (f", 표 줄 {ntab}개(각 {TABLE_ROW_H}px)" if ntab else "")
+                            (f", 표 줄 {ntab}개(각 {TABLE_ROW_H}px)" if ntab else "") + \
+                            (f", 그림 {nfig}개(높이 합 {nfig_h}px)" if nfig else "")
                     E(f"{where} 쪽{pi}: 높이 {height}px > {SCREEN_H}px ({len(lines)}줄{extra})")
                 missing = set()
                 has_link = bool(link_re.search(page))
@@ -329,6 +354,18 @@ def check(nd, font):
                 while li < len(lines):
                     line = lines[li]
                     li += 1
+                    fgm = FIG_RE.match(line)
+                    if fgm:                              # figure line: file, size
+                        fname_ = fgm.group(1).strip()
+                        sz = fig_size(nd, fname_)
+                        if sz is None:
+                            E(f"{where} 쪽{pi} 줄{li}: 그림 파일 없음 또는 PNG 아님: notes/figures/{fname_}.png")
+                        else:
+                            if sz[0] > limit:
+                                E(f"{where} 쪽{pi} 줄{li}: 그림 폭 {sz[0]}px > {limit}px ({fname_})")
+                            if sz[1] > SCREEN_H:
+                                E(f"{where} 쪽{pi} 줄{li}: 그림 높이 {sz[1]}px > {SCREEN_H}px ({fname_})")
+                        continue
                     if "│" in line:                      # table: handled per group of consecutive rows
                         grp = [line]
                         while li < len(lines) and "│" in lines[li]:

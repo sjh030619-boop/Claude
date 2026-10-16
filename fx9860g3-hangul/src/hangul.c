@@ -298,6 +298,28 @@ static const char *table_group(int x, int y, const char *s, int draw, int *heigh
     return last;
 }
 
+/* ---- figure lines (0x1F + 3 digits) --------------------------------------- */
+static const hg_fig *fig_of_line(const char *s)
+{
+    if((uint8_t)s[0] != 0x1F) return 0;
+    int idx = 0;
+    for(int i = 1; i <= 3; i++) {
+        if(s[i] < '0' || s[i] > '9') return 0;
+        idx = idx * 10 + (s[i] - '0');
+    }
+    return idx < hg_fig_count ? &hg_figs[idx] : 0;
+}
+
+int hg_line_figure(const char *s) { return fig_of_line(s) != 0; }
+
+static void draw_fig(int x, int y, const hg_fig *f)
+{
+    int stride = (f->w + 7) / 8;
+    for(int r = 0; r < f->h; r++)
+        for(int c = 0; c < f->w; c++)
+            if(f->bits[r * stride + (c >> 3)] & (0x80 >> (c & 7))) hg_plot(x + c, y + r);
+}
+
 /* Draws (or measures, draw = 0) the formula line starting at s with its top at y. Returns the end of the line
    ('\n', '\f' or NUL) and stores the width in *width. */
 static const char *formula_line(int x, int y, const char *s, int draw, int *width)
@@ -416,7 +438,10 @@ int hg_line_y(const char *s, int line)
 {
     int y = 0;
     while(line-- > 0) {
-        if(line_has_table(s)) {
+        const hg_fig *fg = fig_of_line(s);
+        if(fg) {
+            y += fg->h;
+        } else if(line_has_table(s)) {
             const char *e = line_end(s);
             int last_row = !(*e == '\n' && line_has_table(e + 1));
             y += TBL_ROW_H + (last_row ? 1 : 0);
@@ -440,6 +465,14 @@ static int draw_impl(int x, int y, int width, int line_gap, const char *s,
         int n;
         if(at_start) {
             at_start = 0;
+            const hg_fig *fg = fig_of_line(s);
+            if(fg) {
+                draw_fig(x, y, fg);
+                last_h = fg->h;
+                s = line_end(s);
+                if(*s == '\n') { s++; y += fg->h + line_gap; at_start = 1; last_h = hg_height; }
+                continue;
+            }
             if(line_has_table(s)) {
                 int th, tw;
                 s = table_group(x, y, s, 1, &th, &tw);

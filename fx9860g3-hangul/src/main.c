@@ -208,7 +208,7 @@ static void view(const hg_file *f, int page, int *last_page)
             while(k) buf[n++] = tmp[--k];
             buf[n] = 0;
             int w = n * 4;
-            int w0 = hg_line_table(text) ? 128 : hg_line_formula(text) ? hg_formula_width(text) : hg_text_width(text);   /* first line as drawn */
+            int w0 = (hg_line_table(text) || hg_line_figure(text)) ? 128 : hg_line_formula(text) ? hg_formula_width(text) : hg_text_width(text);   /* first line as drawn */
             for(int i = 0; i < nlinks; i++)
                 if(links[i].line == 0) { w0 = links[i].lw; break; }
             if(x0 + w0 + 3 + w <= 128) hg_tiny_text(128 - w, 0, buf);

@@ -114,7 +114,7 @@ def build_font(size, used, only_used):
             continue
         _, more = parse_bdf(ROOT / "fonts" / f"Galmuri{fb}.bdf", gap)
         glyphs.update(more)
-    missing = sorted(c for c in used if c not in glyphs and c not in (0x0A, 0x302, 0x304, 0x20D7))
+    missing = sorted(c for c in used if c not in glyphs and c not in (0x0A, 0x1F, 0x302, 0x304, 0x20D7))
     if missing:
         print("warning: no glyph for:", "".join(map(chr, missing)), file=sys.stderr)
 
@@ -165,7 +165,7 @@ def name_num(stem):
 
 
 def c_str(s):
-    return s.replace("\\", "\\\\").replace('"', '\\"')
+    return s.replace("\\", "\\\\").replace('"', '\\"').replace("\x1f", "\\037")
 
 
 def c_text(pages):
@@ -293,6 +293,40 @@ def is_index_folder(fname, fnum):
     return fnum == 0 or "색인" in fname
 
 
+FIG_LINE_RE = re.compile(r"^\[그림 ([^\]\n]+)\]\s*$", re.M)
+FIGS = {}      # name -> (index, w, h, bytes)
+
+
+def load_figure(nd, name):
+    """sets/<id>/notes/figures/<name>.png -> 1-bit rows (MSB left, 1 = black)."""
+    if name in FIGS:
+        return FIGS[name][0]
+    p = nd / "figures" / f"{name}.png"
+    if not p.is_file():
+        sys.exit(f"figure not found: {p}")
+    from PIL import Image
+    im = Image.open(p).convert("L")
+    w, h = im.size
+    if w > 128 or h > 64:
+        sys.exit(f"figure {name}: {w}x{h} is larger than the 128x64 screen")
+    px = im.load()
+    data = bytearray()
+    for y in range(h):
+        for x0 in range(0, w, 8):
+            b = 0
+            for k in range(8):
+                if x0 + k < w and px[x0 + k, y] < 128:
+                    b |= 0x80 >> k
+            data.append(b)
+    FIGS[name] = (len(FIGS), w, h, bytes(data))
+    return FIGS[name][0]
+
+
+def apply_figures(nd, text):
+    """Replace every line "[그림 이름]" by 0x1F + a 3-digit figure index."""
+    return FIG_LINE_RE.sub(lambda m: "\x1f%03d" % load_figure(nd, m.group(1).strip()), text)
+
+
 def build_notes(nd):
     if not nd.is_dir():
         sys.exit(f"{nd} not found (sets/<id>/notes/<folder>/<file>.txt)")
@@ -341,7 +375,7 @@ def build_notes(nd):
             continue
         for f in files:
             title = display_name(f.stem)
-            src = decompose_marks(f.read_text(encoding="utf-8").replace("\r\n", "\n"))
+            src = apply_figures(nd, decompose_marks(f.read_text(encoding="utf-8").replace("\r\n", "\n")))
             pages = [p.strip("\n") for p in re.split(r"^---[ \t]*$", src, flags=re.M)]
             pages = [p for p in pages if p.strip()]
             used |= {ord(c) for c in title} | {ord(c) for p in pages for c in p}
@@ -355,7 +389,16 @@ def build_notes(nd):
     for fi, (fname, fnum, files) in enumerate(folders):
         count = 1 if fi in index_no else len(files)
         lines.append(f'  {{ "{c_str(fname)}", folder{fi}, {count}, {fnum}, {index_no.get(fi, 0)} }},')
-    lines += ["};", f"const int hg_folder_count = {len(folders)};"]
+    lines += ["};", f"const int hg_folder_count = {len(folders)};", ""]
+    if FIGS:
+        for name, (i, w, h, data) in sorted(FIGS.items(), key=lambda kv: kv[1][0]):
+            lines.append(f"static const uint8_t fig{i}[] = {{ " + ", ".join(str(b) for b in data) + " };")
+        lines.append("const hg_fig hg_figs[] = {")
+        for name, (i, w, h, data) in sorted(FIGS.items(), key=lambda kv: kv[1][0]):
+            lines.append(f"  {{ {w}, {h}, fig{i} }},  /* {i}: {c_str(name)} */")
+        lines += ["};", f"const int hg_fig_count = {len(FIGS)};"]
+    else:
+        lines += ["const hg_fig hg_figs[] = { { 0, 0, 0 } };", "const int hg_fig_count = 0;"]
     (ROOT / "src" / "notes.c").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"notes: {len(folders)} folder(s), {nfiles} file(s), {npages} page(s)")
     for info in index_info:
