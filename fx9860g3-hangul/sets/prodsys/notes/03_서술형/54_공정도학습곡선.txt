@@ -1,0 +1,44 @@
+[공정도 학습곡선]
+이럴때:공정 기호,학습곡선
+연관:→3/53
+공정 기호 6개
+흐름:직렬 분해 합성
+학습곡선 t=t1/M^{k}
+---
+[학습곡선 식]
+$t={t_{1};M^{k}}$
+$T=t_{1}M^{1-k}$
+t 평균 단위시간 T M개 총 시간
+---
+[공정 기호와 흐름 패턴]
+기호:operation,inspection,
+transportation,
+storage,delay,combined
+activity
+흐름:직렬(sequential,기어
+---
+[공정 기호와 흐름 패턴+]
+가공)
+분해(disjunctive,정유)
+합성(combinative,조립)
+---
+[공정도 종류]
+operation process chart,
+flow process chart
+man-machine chart(작업자,
+기계 유휴 감소)
+right-left-hand chart(양손)
+---
+[공정도 종류+]
+assembly process chart,
+simo chart
+---
+[학습곡선]
+누적 평균 단위시간 t=t1/M^{k}
+M개 총 시간 tM=t1 M^{1-k}
+학습률 r=2^{-k} (두 배 생산시
+비율)
+예:t=600/M^{0.074} → r=0.95
+---
+[관련 문서]
+오른손-왼손 공정도 →3/53
