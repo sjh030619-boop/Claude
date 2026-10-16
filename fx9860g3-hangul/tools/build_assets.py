@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate src/font_data.c and src/notes.c for the Hangul add-in.
 
-  python3 tools/build_assets.py --set prod      # note set sets/prod (omit --set if only one set)
+  python3 tools/build_assets.py --set prodsys      # note set sets/prodsys (omit --set if only one set)
   python3 tools/build_assets.py                 # Galmuri7, KS X 1001 + used chars
   python3 tools/build_assets.py --font 11       # bigger font (11px Hangul)
   python3 tools/build_assets.py --only-used     # smallest: only chars in pages.txt

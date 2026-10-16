@@ -2,7 +2,7 @@
 """Validate notes/ against the calculator's real limits.
 
   python3 tools/check_notes.py            # check every note set (font 7px, like the build default)
-  python3 tools/check_notes.py --set prod # one set
+  python3 tools/check_notes.py --set prodsys # one set
   python3 tools/check_notes.py --dir path/to/notes   # standalone: check one notes/ folder (zip bundle use)
   python3 tools/check_notes.py --font 9
 

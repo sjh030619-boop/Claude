@@ -10,7 +10,7 @@ sets/
   mlmid/                   ← 세트 id (아무 이름)
     set.json               ← {"name": "mlmid", "title": "기계공학을위한인공지능"}   name = 계산기 메뉴의 앱 이름(영문 8자 이하)
     notes/<NN_폴더>/<NN_파일>.txt
-  prod/
+  prodsys/
     set.json  notes/...
 ```
 1. 글은 `sets/<세트>/notes/<폴더>/<파일>.txt` (UTF-8) 로 둡니다. 계산기에서 폴더 → 파일 → 본문 순서로 열립니다.
@@ -20,14 +20,14 @@ sets/
 2. 노트 검사 / 데이터 생성 (세트 하나 기준):
    ```
    python3 tools/check_notes.py                    # 모든 세트 검사 (--set <id> 로 하나만)
-   python3 tools/build_assets.py --set prod        # 폰트 + 노트 데이터 + 앱 이름 생성 (기본 7px)
-   python3 tools/build_assets.py --set prod --only-used   # 쓴 글자만 (훨씬 작음)
-   python3 tools/build_assets.py --set prod --font 11     # 11px 폰트 (10글자 × 5줄)
+   python3 tools/build_assets.py --set prodsys        # 폰트 + 노트 데이터 + 앱 이름 생성 (기본 7px)
+   python3 tools/build_assets.py --set prodsys --only-used   # 쓴 글자만 (훨씬 작음)
+   python3 tools/build_assets.py --set prodsys --font 11     # 11px 폰트 (10글자 × 5줄)
    ```
    생성되는 `src/notes.c`, `src/font_data.c`, `src/addin.cmake` 는 세트마다 달라서 git 에 올리지 않습니다.
 3. 빌드 ([fxSDK](https://git.planet-casio.com/Lephenixnoir/fxsdk) 필요) — 세트마다:
    ```
-   python3 tools/build_assets.py --set prod && fxsdk build-fx     # → HanProd.g1a
+   python3 tools/build_assets.py --set prodsys && fxsdk build-fx     # → prodsys.g1a
    ```
    Windows 스크립트(아래)는 모든 세트를 차례로 빌드해서 `dist/` 에 `.g1a` 를 여러 개 만듭니다.
 4. `.g1a` 들을 USB 로 계산기 저장 메모리에 복사합니다.
@@ -59,7 +59,7 @@ sets/
 powershell -ExecutionPolicy Bypass -File tools\windows\build_windows.ps1
 ```
 WSL2(Ubuntu) 가 없으면 안내가 나옵니다(`wsl --install -d Ubuntu` 후 재부팅). 처음에는 툴체인 빌드에
-30~60분 이상 걸리고, 끝나면 `dist\` 에 세트마다 `.g1a` (예: `mlmid.g1a`, `HanProd.g1a`) 가 생기며 탐색기가 열립니다.
+30~60분 이상 걸리고, 끝나면 `dist\` 에 세트마다 `.g1a` (예: `mlmid.g1a`, `prodsys.g1a`) 가 생기며 탐색기가 열립니다.
 (fxSDK 서버는 git.planet-casio.com 입니다. 실제 PC 에서는 아직 검증하지 못했습니다.)
 
 ## 번호 점프 / 색인 링크
