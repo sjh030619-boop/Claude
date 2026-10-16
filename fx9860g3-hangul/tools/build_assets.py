@@ -11,6 +11,7 @@ Text: notes/<folder>/<file>.txt (UTF-8); inside a file, pages are separated by a
 line containing only '---'. Leading numbers in names (01_) only set the order.
 """
 import argparse
+import json
 import re
 import unicodedata
 import sys
@@ -113,7 +114,7 @@ def build_font(size, used, only_used):
             continue
         _, more = parse_bdf(ROOT / "fonts" / f"Galmuri{fb}.bdf", gap)
         glyphs.update(more)
-    missing = sorted(c for c in used if c not in glyphs and c not in (0x0A, 0x302, 0x304))
+    missing = sorted(c for c in used if c not in glyphs and c not in (0x0A, 0x302, 0x304, 0x20D7))
     if missing:
         print("warning: no glyph for:", "".join(map(chr, missing)), file=sys.stderr)
 
@@ -271,7 +272,7 @@ def check_dups(nums, what):
         seen.add(n)
 
 
-MARKS = {"\u0302", "\u0304"}      # combining hat / bar: drawn over the previous glyph by the viewer
+MARKS = {"\u0302", "\u0304", "\u20d7"}      # combining hat / bar: drawn over the previous glyph by the viewer
 
 
 def decompose_marks(text):
@@ -373,8 +374,14 @@ def main():
     used = build_notes(ns["notes"])
     build_font(a.font, used, a.only_used)
     # add-in name / output file for CMake (see CMakeLists.txt)
+    # menu icon: sets/<id>/icon.json {"text": ..., "art": net|gear|book}; default = add-in name + book
+    icfg = ROOT / "sets" / ns["id"] / "icon.json"
+    ic = json.loads(icfg.read_text(encoding="utf-8")) if icfg.is_file() else {}
+    import make_icon
+    make_icon.make_icon(ROOT / "src" / "icon_gen.png", ic.get("text", ns["name"][:7]), ic.get("art", "book"))
     (ROOT / "src" / "addin.cmake").write_text(
-        f'set(ADDIN_NAME "{ns["name"]}")\nset(ADDIN_OUTPUT "{ns["output"]}")\n', encoding="utf-8")
+        f'set(ADDIN_NAME "{ns["name"]}")\nset(ADDIN_OUTPUT "{ns["output"]}")\nset(ADDIN_ICON "src/icon_gen.png")\n',
+        encoding="utf-8")
     print(f"set: {ns['id']} ({ns['title']}) -> add-in {ns['name']} / {ns['output']}")
 
 

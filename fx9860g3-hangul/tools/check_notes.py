@@ -63,7 +63,7 @@ NAME_OK = re.compile(r"^[0-9A-Za-z가-힣_\-]+$")
 WIN_BAD = set('<>:"/\\|?*')   # not allowed in Windows file names (error); other odd characters only warn
 
 
-MARKS = {"\u0302", "\u0304"}      # combining hat / bar: zero width, drawn over the previous glyph
+MARKS = {"\u0302", "\u0304", "\u20d7"}      # combining hat / bar: zero width, drawn over the previous glyph
 
 
 def decompose_marks(text):
@@ -151,6 +151,35 @@ def formula_width(line, adv, missing, err):
             math = not math
             i += 1
             continue
+        if c == "∑" and line[i + 1:i + 2] in ("_", "^") and line[i + 2:i + 3] == "{":
+            # sum with limits: _{lo} and/or ^{hi} stacked above / below the sign
+            lo = hi = 0
+            j = i + 1
+            for _ in range(2):
+                if line[j:j + 1] in ("_", "^") and line[j + 1:j + 2] == "{" and "}" in line[j + 2:]:
+                    k = line.index("}", j + 2)
+                    if line[j] == "_":
+                        lo = k - j - 2
+                    else:
+                        hi = k - j - 2
+                    j = k + 1
+            w += max(glyph(c), TINY_ADV * lo, TINY_ADV * hi) + 1
+            i = j
+            continue
+        if c == "√" and line[i + 1:i + 2] == "{":
+            depth, j, semi = 1, i + 2, -1
+            while j < len(line) and depth:
+                if line[j] == "{":
+                    depth += 1
+                elif line[j] == "}":
+                    depth -= 1
+                elif line[j] == ";" and depth == 1 and semi < 0:
+                    semi = j
+                j += 1
+            if not depth and semi < 0:
+                w += 5 + run(line[i + 2:j - 1], True) + 2
+                i = j
+                continue
         if math and c == "{":
             depth, j, semi = 1, i + 1, -1
             while j < len(line) and depth:

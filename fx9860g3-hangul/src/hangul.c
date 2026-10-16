@@ -55,8 +55,9 @@ static void draw_glyph(int x, int y, int idx)
 
 #define TINY_ADV 4
 
-/* Combining marks drawn over the previous glyph (no advance): U+0302 hat (y + hat = y-hat), U+0304 bar. */
-static int is_mark(uint32_t cp) { return cp == 0x302 || cp == 0x304; }
+/* Combining marks drawn over the previous glyph (no advance): U+0302 hat (y + hat = y-hat), U+0304 bar,
+   U+20D7 vector arrow. */
+static int is_mark(uint32_t cp) { return cp == 0x302 || cp == 0x304 || cp == 0x20D7; }
 
 static void draw_mark(int x, int y, int idx, uint32_t cp)
 {
@@ -64,7 +65,13 @@ static void draw_mark(int x, int y, int idx, uint32_t cp)
     int top = 0, adv = hg_adv[idx];
     while(top < hg_height && !rows[top]) top++;
     int mx = x + (adv > 3 ? (adv - 3) / 2 : 0);
-    if(cp == 0x302) {
+    if(cp == 0x20D7) {
+        int r = top - 4 < 0 ? 0 : top - 4;
+        int ax = x + (adv > 5 ? (adv - 5) / 2 : 0);
+        for(int i = 0; i < 5; i++) hg_plot(ax + i, y + r + 1);
+        hg_plot(ax + 3, y + r);
+        hg_plot(ax + 3, y + r + 2);
+    } else if(cp == 0x302) {
         int r = top - 3 < 0 ? 0 : top - 3;
         hg_plot(mx + 1, y + r);
         hg_plot(mx, y + r + 1);
@@ -178,6 +185,31 @@ static int run(int x, int ty, const char *a, const char *b, int big, int draw)
     return cx;
 }
 
+static void plot_line(int x0, int y0, int x1, int y1)
+{
+    int dx = x1 > x0 ? x1 - x0 : x0 - x1, dy = y1 > y0 ? y1 - y0 : y0 - y1;
+    int sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1, err = dx - dy;
+    for(;;) {
+        hg_plot(x0, y0);
+        if(x0 == x1 && y0 == y1) break;
+        int e2 = 2 * err;
+        if(e2 > -dy) { err -= dy; x0 += sx; }
+        if(e2 < dx) { err += dx; y0 += sy; }
+    }
+}
+
+static int count_chars(const char *a, const char *b)
+{
+    int n = 0;
+    while(a < b) { decode(&a); n++; }
+    return n;
+}
+
+static int is_sym(const char *s, uint8_t b2, uint8_t b3)
+{
+    return (uint8_t)s[0] == 0xE2 && (uint8_t)s[1] == b2 && (uint8_t)s[2] == b3;
+}
+
 /* Draws (or measures, draw = 0) the formula line starting at s with its top at y. Returns the end of the line
    ('\n', '\f' or NUL) and stores the width in *width. */
 static const char *formula_line(int x, int y, const char *s, int draw, int *width)
@@ -186,6 +218,54 @@ static const char *formula_line(int x, int y, const char *s, int draw, int *widt
 
     while(*s && *s != '\n' && *s != '\f') {
         if(*s == '$') { math = !math; s++; continue; }
+        /* sum with limits: U+2211 followed by _{lo} and/or ^{hi} (stacked above / below the sign) */
+        if(is_sym(s, 0x88, 0x91) && (s[3] == '_' || s[3] == '^')) {
+            const char *p = s + 3, *lo = 0, *lo_e = 0, *hi = 0, *hi_e = 0, *end;
+            int n;
+            for(int k = 0; k < 2 && tiny_group(p, &end, &n); k++) {
+                if(p[0] == '_') { lo = p + 2; lo_e = end - 1; } else { hi = p + 2; hi_e = end - 1; }
+                p = end;
+            }
+            int idx = glyph_index(0x2211);
+            if(idx >= 0) {
+                int nlo = lo ? count_chars(lo, lo_e) : 0, nhi = hi ? count_chars(hi, hi_e) : 0;
+                int w = hg_adv[idx];
+                if(nlo * TINY_ADV > w) w = nlo * TINY_ADV;
+                if(nhi * TINY_ADV > w) w = nhi * TINY_ADV;
+                if(draw) {
+                    draw_glyph(x + cx + (w - hg_adv[idx]) / 2, ty, idx);
+                    for(int i = 0; i < nhi; i++) {
+                        uint32_t c = decode(&hi);
+                        draw_tiny(x + cx + (w - nhi * TINY_ADV) / 2 + i * TINY_ADV, y + 1, c < 0x80 ? (int)c : '?');
+                    }
+                    for(int i = 0; i < nlo; i++) {
+                        uint32_t c = decode(&lo);
+                        draw_tiny(x + cx + (w - nlo * TINY_ADV) / 2 + i * TINY_ADV, y + 15, c < 0x80 ? (int)c : '?');
+                    }
+                }
+                cx += w + 1;
+                s = p;
+                continue;
+            }
+        }
+        /* square root: U+221A followed by {radicand}: radical sign + bar over the radicand */
+        if(is_sym(s, 0x88, 0x9A) && s[3] == '{') {
+            const char *semi, *close = frac_end(s + 4, &semi);
+            if(close && !semi) {
+                int w = run(0, 0, s + 4, close, 1, 0);
+                if(draw) {
+                    int bx = x + cx;
+                    plot_line(bx, y + 11, bx + 1, y + 12);
+                    plot_line(bx + 1, y + 12, bx + 2, y + 14);
+                    plot_line(bx + 2, y + 14, bx + 4, y + 3);
+                    for(int i = 0; i < w + 2; i++) hg_plot(bx + 4 + i, y + 3);
+                    run(bx + 5, ty, s + 4, close, 1, 1);
+                }
+                cx += 5 + w + 2;
+                s = close + 1;
+                continue;
+            }
+        }
         if(math && *s == '{') {
             const char *semi, *close = frac_end(s + 1, &semi);
             if(close && semi) {

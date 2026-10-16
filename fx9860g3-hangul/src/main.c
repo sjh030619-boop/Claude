@@ -1,6 +1,7 @@
 #include <stddef.h>
 
 #include <gint/display.h>
+#include <gint/gint.h>
 #include <gint/keyboard.h>
 
 #include "fakecalc.h"
@@ -299,6 +300,8 @@ static void browse_files(int folder)
 
 int main(void)
 {
+    /* Without this the OS cannot restart the add-in after it exits until another add-in has been run. */
+    gint_setrestart(1);
     list_t l = { hg_folder_count, folder_name, folder_num, folder_count };
     int sel = 0, top = 0, r;
 

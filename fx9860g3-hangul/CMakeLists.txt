@@ -27,4 +27,4 @@ target_compile_options(hangul PRIVATE -Wall -Wextra -Os)
 target_link_libraries(hangul Gint::Gint)
 
 generate_g1a(TARGET hangul OUTPUT "${ADDIN_OUTPUT}"
-  NAME "${ADDIN_NAME}" ICON assets-fx/icon.png)
+  NAME "${ADDIN_NAME}" ICON "${ADDIN_ICON}")
