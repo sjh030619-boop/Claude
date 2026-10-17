@@ -1,5 +1,7 @@
 # fx-9860G III 한글 뷰어 (add-in)
 
+> 새 컴퓨터/새 Claude 계정에서 이어서 작업하려면 [`docs/HANDOVER.md`](docs/HANDOVER.md) 를 먼저 읽으세요.
+
 계산기 화면에 한글을 보여주는 fxSDK/gint add-in 입니다. Galmuri(기본 7px 한글 픽셀폰트, SIL OFL)를
 비트맵으로 내장해서 128×64 화면에 **16글자 × 6줄** 정도를 표시합니다.
 

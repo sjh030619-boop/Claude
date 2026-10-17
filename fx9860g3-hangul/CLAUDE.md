@@ -2,6 +2,8 @@
 
 Builds CASIO fx-9860G III add-ins (`mlmid.g1a`, `prodsys.g1a`, ... one per subject/note set) that show Korean notes.
 
+**Taking over this project (new computer / new Claude account): read `docs/HANDOVER.md` first.**
+
 ## Common tasks
 
 - **Build the add-in (Windows, via WSL2 Ubuntu)**: `powershell -ExecutionPolicy Bypass -File tools\windows\build_windows.ps1`
