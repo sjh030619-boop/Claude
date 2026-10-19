@@ -138,6 +138,18 @@ static void read_vars(const char *src, vars_t *v)
         }
 }
 
+/* where (offset in the output) the first value of variable fill_focus was written, for the input screen */
+static int fill_focus = -1, fill_off = -1;
+
+/* small arrow at the bottom right: there is more text below (scroll with the down key) */
+static void more_below(void)
+{
+    drect(120, 58, 127, 63, C_WHITE);
+    drect(122, 59, 126, 59, C_BLACK);
+    drect(123, 60, 125, 60, C_BLACK);
+    drect(124, 61, 124, 61, C_BLACK);
+}
+
 /* the page source with every marker + number replaced by the entered value and every {=expr} by its result */
 static void fill(const char *src, const vars_t *v, int use_disp, char *out, int max)
 {
@@ -163,6 +175,7 @@ static void fill(const char *src, const vars_t *v, int use_disp, char *out, int 
             while(k < v->nv && v->cp[k] != cp) k++;
             if(*s == '-') s++;
             while((*s >= '0' && *s <= '9') || *s == '.') s++;
+            if(k == fill_focus && fill_off < 0) fill_off = n;
             if(k < v->nv) {
                 const char *val = use_disp ? v->disp[k] : v->val[k];
                 /* inside ^{..} / _{..} only ASCII can be drawn: a circled consonant becomes a, b, c ... */
@@ -194,12 +207,25 @@ static void prompt_screen(const hg_pageinfo *pi, vars_t *v, int k, const char *b
         else if(v->done[j]) strcpy(d, v->val[j]);
         else put_cp(d, v->cp[j]);
     }
+    fill_focus = k; fill_off = -1;
     fill(pi->src, v, 1, text, sizeof text);
+    fill_focus = -1;
+    /* the text can be longer than the 50 px above the input row: scroll so the variable being typed stays visible */
+    int off = 0;
+    if(fill_off >= 0) {
+        static char head[1024];
+        int len = fill_off + (int)strlen(v->disp[k]);
+        if(len > (int)sizeof head - 1) len = sizeof head - 1;
+        memcpy(head, text, len);
+        head[len] = 0;
+        int bottom = hg_draw_text(0, 0, 128, 0, head);        /* only measures: the screen is cleared next */
+        if(bottom > 50) off = bottom - 50;
+    }
     put_cp(m, v->cp[k]);
     dclear(C_WHITE);
-    hg_draw_text(0, 0, 128, 0, text);
-    drect(0, 52, 127, 63, C_WHITE);
-    dline(0, 53, 127, 53, C_BLACK);
+    hg_draw_text(0, -off, 128, 0, text);
+    drect(0, 50, 127, 63, C_WHITE);
+    dline(0, 52, 127, 52, C_BLACK);
     strcpy(line, m); strcat(line, "("); strcat(line, v->def[k]); strcat(line, ")>");
     hg_draw_text(0, 54, 128, 0, line);
     int x = hg_text_width(line) + 1;
@@ -311,7 +337,8 @@ void note_calc_run(const hg_pageinfo *pi, const hg_file *extra, int extra_page)
                     if(e) *e = 0;
                 }
                 dclear(C_WHITE);
-                hg_draw_text(0, -scroll * hg_height, 128, 0, text);
+                int bottom = hg_draw_text(0, -scroll * hg_height, 128, 0, text);
+                if(bottom > 64) more_below();
                 if(scroll == 0 && npages > 1) {
                     char nb[12];
                     int n = 0, w;

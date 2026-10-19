@@ -201,7 +201,7 @@ static void view(const hg_file *f, int page, int *last_page)
         if(link_sel >= nlinks) link_sel = 0;
 
         dclear(C_WHITE);
-        hg_draw_text_links(x0, -scroll * hg_height, 128 - x0, 0, text, links, nlinks);
+        int bottom = hg_draw_text_links(x0, -scroll * hg_height, 128 - x0, 0, text, links, nlinks);
         if(nlinks) {
             int ly = hg_line_y(text, links[link_sel].line) - scroll * hg_height;
             hg_draw_text(0, ly, 1000, 0, ">");
@@ -228,6 +228,12 @@ static void view(const hg_file *f, int page, int *last_page)
             if(x0 + w0 + 3 + w <= 128) hg_tiny_text(128 - w, 0, buf);
         }
         const hg_pageinfo *pi = (f->pinfo && (f->pinfo[page].has_extra || f->pinfo[page].has_calc)) ? &f->pinfo[page] : NULL;
+        if(bottom > 64) {   /* more text below: small arrow, scroll with DOWN */
+            drect(120, 58, 127, 63, C_WHITE);
+            drect(122, 59, 126, 59, C_BLACK);
+            drect(123, 60, 125, 60, C_BLACK);
+            drect(124, 61, 124, 61, C_BLACK);
+        }
         if(footer && !pi) {
             drect(0, 56, 127, 63, C_WHITE);
             dprint(1, 57, C_BLACK, "%d/%d", page + 1, pages);
