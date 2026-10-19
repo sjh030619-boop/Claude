@@ -270,6 +270,7 @@ def displayed_line(line):
 
 
 INFOS = {}
+CTX = {}
 TAB_BAR_H = 8   # bottom function-key bar of a page with the 계산 / 추가 tabs
 
 
@@ -281,15 +282,18 @@ def check(nd, font):
         sys.exit(f"{nd} not found")
 
     folders = []  # (name, num, [(path, title, num, pages)])
-    def read_files(files):
+    global CTX
+    CTX = calcpage.build_context(nd)
+    def read_files(files, fnum_):
         out = []
         for f in files:
+            num_ = name_num(f.stem)
             src = decompose_marks(f.read_text(encoding="utf-8").replace("\r\n", "\n"))
             pages = [p.strip("\n") for p in re.split(r"^---[ \t]*$", src, flags=re.M)]
             pages = [p for p in pages if p.strip()]
             shown = []
             for k, p in enumerate(pages):
-                d, info = calcpage.split_page(p)
+                d, info = calcpage.split_page(p, CTX.get((fnum_, num_, k + 1)))
                 shown.append(d)
                 if info:
                     INFOS[(f, k + 1)] = info
@@ -298,10 +302,10 @@ def check(nd, font):
     for d in sorted(p for p in nd.iterdir() if p.is_dir()):
         files = sorted(d.glob("*.txt"))
         if files:
-            folders.append((display_name(d.name), name_num(d.name), read_files(files)))
+            folders.append((display_name(d.name), name_num(d.name), read_files(files, name_num(d.name))))
     root_files = sorted(nd.glob("*.txt"))
     if root_files:
-        folders.append(("기타", -1, read_files(root_files)))
+        folders.append(("기타", -1, read_files(root_files, -1)))
 
     errors, warns = [], []
     def E(msg): errors.append(msg)
@@ -322,6 +326,7 @@ def check(nd, font):
             W(f"폴더명이 {MAX_NAME}자 초과: {fname}")
 
     link_re = re.compile(r"→(\d+)/(\d+)(?::(\d+))?")
+    path_of = {(fnum_, n_): p_ for _, fnum_, fl_ in folders for p_, _, n_, _ in fl_ if fnum_ >= 0 and n_ >= 0}
     n_uncertain = n_outside = 0
     n_calc = []
     for d in sorted(p for p in nd.iterdir() if p.is_dir()):
@@ -423,12 +428,12 @@ def check(nd, font):
                     W(f"{where} 쪽{pi}: 쓰기로 한 범위 밖의 문자 {''.join(bad)}")
                 n_uncertain += sum(1 for l in lines if l.startswith("불확실:"))
                 n_outside += sum(1 for l in lines if l.startswith("교재밖:"))
-                if fnum != 0 and "색인" not in fname and pi == 1 and not (len(lines) > 1 and lines[1].startswith("이럴때:")):
+                if fnum != 0 and "색인" not in fname and "예제" not in fname and not info and pi == 1 and not (len(lines) > 1 and lines[1].startswith("이럴때:")):
                     W(f"{where} 쪽1: 둘째 줄이 '이럴때:' 로 시작하지 않음")
                 if info:
                     for m_ in info.errors:
                         E(f"{where} 쪽{pi}: {m_}")
-                    if link_re.search(page):
+                    if (info.calc or info.extra) and link_re.search(page):
                         E(f"{where} 쪽{pi}: 계산/추가 탭이 있는 쪽 본문에는 링크를 둘 수 없음 (추가 정보는 @추가 줄로)")
                     if info.extra:
                         f_, fi_, pg_ = info.extra
@@ -436,6 +441,23 @@ def check(nd, font):
                             E(f"{where} 쪽{pi}: @추가 →{f_}/{fi_} 대상 없음")
                         elif not 1 <= pg_ <= index[f_][fi_]:
                             E(f"{where} 쪽{pi}: @추가 쪽 번호 범위 밖")
+                        elif info.calc:
+                            # solution pages from the @추가 page to the end of that file are filled with the numbers
+                            vals0 = dict(info.vars)
+                            tpath = path_of[(f_, fi_)]
+                            for k2 in range(pg_, index[f_][fi_] + 1):
+                                i2 = INFOS.get((tpath, k2))
+                                if not i2:
+                                    continue
+                                for c_, v_ in i2.vars:
+                                    if c_ not in vals0:
+                                        E(f"{rel(tpath)} 쪽{k2}: 변수 {c_} 가 문제 쪽({where} 쪽{pi})에 없음")
+                                    elif vals0[c_] != v_:
+                                        E(f"{rel(tpath)} 쪽{k2}: 변수 {c_} 값 {v_} 가 문제 쪽({where} 쪽{pi})의 {vals0[c_]} 와 다름")
+                                for e_ in i2.exprs:
+                                    for ch in e_:
+                                        if ch in calcpage.MARKS and ch not in vals0:
+                                            E(f"{rel(tpath)} 쪽{k2}: {{={e_}}} 의 변수 {ch} 가 문제 쪽에 없음")
                     vals = dict(info.vars)
                     for lab, expr in info.formulas:
                         try:

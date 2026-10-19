@@ -348,6 +348,7 @@ def build_notes(nd):
     nfiles = npages = 0
     index_info = []
     pinfo_defs = []
+    ctx = calcpage.build_context(nd)
     index_no = {}      # folder position -> 1 (F2) / 2 (F3)
     for fi, (fname, fnum, files) in enumerate(folders):
         if is_index_folder(fname, fnum) and len(index_no) < 2:
@@ -382,20 +383,20 @@ def build_notes(nd):
             pages = [p for p in pages if p.strip()]
             infos = []
             for k, p in enumerate(pages):
-                pages[k], inf = calcpage.split_page(p)
+                pages[k], inf = calcpage.split_page(p, ctx.get((fnum, name_num(f.stem), k + 1)))
                 infos.append(inf)
                 if inf:
                     used |= {ord(c) for c in inf.src}
-            if any(i and (i.calc or i.extra) for i in infos):
+            if any(i and (i.fill or i.extra) for i in infos):
                 arr = []
                 for inf in infos:
-                    if not inf or not (inf.calc or inf.extra):
+                    if not inf or not (inf.fill or inf.extra):
                         arr.append("  { 0, 0, 0, 0, 0, \"\", \"\" },")
                         continue
                     ex = inf.extra or (0, 0, 1)
                     fo = "".join(c_str(lab + "=" + e) + "\\000" for lab, e in inf.formulas)
                     arr.append(f'  {{ {1 if inf.extra else 0}, {1 if inf.calc else 0}, {ex[0]}, {ex[1]}, {ex[2]}, '
-                               f'"{c_str(inf.src).replace(chr(10), chr(92) + "n")}", "{fo}" }},')
+                               f'"{c_str(inf.src if inf.fill else "").replace(chr(10), chr(92) + "n")}", "{fo}" }},')
                 pinfo_defs.append(f"static const hg_pageinfo pinfo{len(pinfo_defs)}[] = {{\n" + "\n".join(arr) + "\n};")
                 pi_name = f"pinfo{len(pinfo_defs) - 1}"
             else:

@@ -237,7 +237,15 @@ static void view(const hg_file *f, int page, int *last_page)
         int key = getkey().key;
 
         if(key == KEY_EXP) { fake_calc(); pending = -1; continue; }
-        if(pi && key == KEY_F2 && pi->has_calc) { note_calc_run(pi); pending = -1; continue; }
+        if(pi && key == KEY_F2 && pi->has_calc) {
+            const hg_file *ef = NULL;
+            int fo = pi->has_extra ? find_folder(pi->lf) : -1;
+            int fi = fo >= 0 ? find_file(fo, pi->ln) : -1;
+            if(fi >= 0) ef = &hg_folders[fo].files[fi];
+            note_calc_run(pi, ef, pi->lp - 1);
+            pending = -1;
+            continue;
+        }
         if(pi && key == KEY_F1 && pi->has_extra) {
             int fo = find_folder(pi->lf);
             int fi = fo >= 0 ? find_file(fo, pi->ln) : -1;

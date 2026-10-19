@@ -4,15 +4,22 @@ Directive lines at the end of a page (each line starts with '@'):
     @계산                      enables the calculation tab (variables come from the markers in the text)
     @식 w1=㉡-2㉢(㉡-㉠)        a result shown after the numbers are entered (label=expression), any number
     @추가 →4/3:1               the extra-information tab opens this page (F1)
+    @값                        (on a solution page) the page is filled with the entered numbers, see below
 Variable markers in the page text: a circled consonant (U+3260..U+326D, ㉠~㉭) directly followed by a number,
 e.g. `㉠1.2`. The viewer shows only the number ("1.2"); the calculation tab asks for a new value for each
 marker (in the order ㉠ ㉡ ...) and shows the problem again with the new numbers. In @식 expressions the bare
-marker letter stands for the variable's value."""
+marker letter stands for the variable's value.
+A solution page (the target of @추가, or any page with @값) may use the same markers (`㉠3`) and inline
+calculations `{=㉡-2㉢(㉡-㉠)}`; the viewer shows them with the original values, and after the numbers are entered in
+the calculation tab the solution pages (from the @추가 page to the end of that file) are shown filled with the
+new numbers."""
 import math
 import re
 
 MARKS = "".join(chr(c) for c in range(0x3260, 0x326E))
 VAR_RE = re.compile("([" + MARKS + r"])(-?\d+(?:\.\d+)?)")
+EXPR_RE = re.compile(r"\{=([^}]*)\}")
+TOKEN_RE = re.compile(r"\{=([^}]*)\}|([" + MARKS + r"])(-?\d+(?:\.\d+)?)")
 LINK_RE = re.compile(r"→(\d+)/(\d+)(?::(\d+))?")
 FUNCS = ("sin", "cos", "tan", "ln", "log")
 
@@ -20,6 +27,8 @@ FUNCS = ("sin", "cos", "tan", "ln", "log")
 class Info:
     def __init__(self):
         self.calc = False
+        self.fill = False        # markers / {=expr} are filled in (calculation tab or @값)
+        self.exprs = []          # inline {=expr} strings
         self.src = ""            # page text with the markers (for the calculation tab)
         self.vars = []           # [(char, default string)], in marker order
         self.formulas = []       # [(label, expr)]
@@ -31,8 +40,38 @@ def has_directives(page):
     return any(l.startswith("@") for l in page.split("\n"))
 
 
-def split_page(page):
-    """-> (display_text, Info or None). Pages without directives are returned unchanged."""
+def _num(stem):
+    m = re.match(r"^(\d+)[_.\- ]+", stem)
+    return int(m.group(1)) if m else -1
+
+
+def build_context(nd):
+    """{(folder number, file number, 1-based page): {marker: value}} for the solution pages that follow a
+    problem page's @추가 link, so that {=expr} on those pages can be evaluated with the problem's numbers."""
+    from pathlib import Path
+    nd = Path(nd)
+    pages = {}
+    for d in sorted(p for p in nd.iterdir() if p.is_dir()):
+        for f in sorted(d.glob("*.txt")):
+            txt = f.read_text(encoding="utf-8").replace("\r\n", "\n")
+            pg = [p.strip("\n") for p in re.split(r"^---[ \t]*$", txt, flags=re.M)]
+            pages[(_num(d.name), _num(f.stem))] = [p for p in pg if p.strip()]
+    ctx = {}
+    for pgs in pages.values():
+        for p in pgs:
+            if not has_directives(p):
+                continue
+            _, info = split_page(p)
+            if info and info.calc and info.extra:
+                fo, fi, pg0 = info.extra
+                for k in range(pg0, len(pages.get((fo, fi), [])) + 1):
+                    ctx.setdefault((fo, fi, k), dict(info.vars))
+    return ctx
+
+
+def split_page(page, ctx=None):
+    """-> (display_text, Info or None). Pages without directives are returned unchanged.
+    ctx: values of the variables from the problem page this solution page belongs to (see build_context)."""
     lines = page.split("\n")
     if not any(l.startswith("@") for l in lines):
         return page, None
@@ -46,6 +85,8 @@ def split_page(page):
         rest = rest.strip()
         if word == "계산":
             info.calc = True
+        elif word == "값":
+            info.fill = True
         elif word == "식":
             lab, eq, expr = rest.partition("=")
             if not eq or not lab.strip() or not expr.strip():
@@ -66,23 +107,48 @@ def split_page(page):
     src = "\n".join(body)
     info.src = src
     seen = {}
-    for m in VAR_RE.finditer(src):
+    for m in VAR_RE.finditer(EXPR_RE.sub("", src)):
         c, v = m.groups()
         if c in seen and seen[c] != v:
             info.errors.append(f"변수 {c} 의 값이 두 곳에서 다름: {seen[c]} / {v}")
         seen.setdefault(c, v)
     info.vars = sorted(seen.items())
-    if info.calc:
-        display = VAR_RE.sub(lambda m: m.group(2), src)
+    info.exprs = EXPR_RE.findall(src)
+    info.fill = info.fill or info.calc
+    values = dict(ctx or {})
+    values.update(seen)
+    if info.fill:
+        def rep(m):
+            if m.group(1) is not None:
+                try:
+                    return fmt(py_eval(m.group(1), values))
+                except Exception as ex:
+                    info.errors.append(f"{{={m.group(1)}}} 계산 실패 ({ex})")
+                    return "?"
+            return m.group(3)
+        display = TOKEN_RE.sub(rep, src)
     else:
         display = src
-        if info.vars:
-            info.errors.append("원문자 변수가 있는데 @계산 줄이 없음")
+        if info.vars or info.exprs:
+            info.errors.append("원문자 변수나 {=식} 이 있는데 @계산 / @값 줄이 없음")
     for lab, expr in info.formulas:
         for c in expr:
             if c in MARKS and c not in seen:
                 info.errors.append(f"@식 의 변수 {c} 가 본문에 값과 함께 나오지 않음: {lab}")
     return display, info
+
+
+def fmt(x):
+    """Like the calculator's Norm 1 display with 10 significant digits."""
+    if x == 0:
+        return "0"
+    r = float(f"{x:.10g}")
+    if abs(r) < 0.01 or abs(r) >= 1e10:
+        m, e = f"{r:.9e}".split("e")
+        m = m.rstrip("0").rstrip(".")
+        return f"{m}E{'-' if int(e) < 0 else '+'}{abs(int(e)):02d}"
+    t = f"{r:.10f}".rstrip("0").rstrip(".") if "e" not in f"{r}" else f"{r:.10g}"
+    return t
 
 
 def py_eval(expr, values):

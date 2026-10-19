@@ -135,12 +135,25 @@ static void read_vars(const char *src, vars_t *v)
         }
 }
 
-/* the page source with every marker + number replaced by the entered value */
+/* the page source with every marker + number replaced by the entered value and every {=expr} by its result */
 static void fill(const char *src, const vars_t *v, char *out, int max)
 {
     int n = 0;
-    for(const char *s = src; *s && n < max - 4;) {
+    for(const char *s = src; *s && n < max - 40;) {
         const char *at = s;
+        if(s[0] == '{' && s[1] == '=') {
+            char expr[96], num[28];
+            int k = 0;
+            const char *q = s + 2;
+            while(*q && *q != '}' && k < (int)sizeof expr - 1) expr[k++] = *q++;
+            expr[k] = 0;
+            s = *q == '}' ? q + 1 : q;
+            double r;
+            int e = note_eval(expr, v->cp, v->val, v->nv, &r);
+            if(e == CALC_OK) calc_format(r, num); else strcpy(num, "ERR");
+            for(const char *c = num; *c; c++) out[n++] = *c;
+            continue;
+        }
         unsigned cp = next_cp(&s);
         if(is_marker(cp)) {
             int k = 0;
@@ -154,31 +167,35 @@ static void fill(const char *src, const vars_t *v, char *out, int max)
     out[n] = 0;
 }
 
-static void prompt_screen(const vars_t *v, int k, const char *buf)
+/* The problem with the values entered so far (the others keep their original numbers) and, in the bottom row,
+   the question for variable k. */
+static void prompt_screen(const hg_pageinfo *pi, const vars_t *v, int k, const char *buf)
 {
+    static char text[1024];
     char m[4], line[40];
+
+    fill(pi->src, v, text, sizeof text);
     put_cp(m, v->cp[k]);
     dclear(C_WHITE);
-    hg_draw_text(0, 0, 100, 0, m);
-    hg_draw_text(hg_text_width(m) + 2, 0, 100, 0, "= ?");
-    dprint(104, 2, C_BLACK, "%d/%d", k + 1, v->nv);
-    strcpy(line, "원래 값: "); strcat(line, v->def[k]);
-    hg_draw_text(0, 14, 128, 0, line);
-    hg_draw_text(0, 28, 128, 0, ">");
-    hg_draw_text(10, 28, 118, 0, buf);
-    int w = hg_text_width(buf);
-    drect(10 + w + 1, 36, 10 + w + 5, 37, C_BLACK);
-    hg_draw_text(0, 53, 128, 0, "EXE 확인  ↑ 이전");
+    hg_draw_text(0, 0, 128, 0, text);
+    drect(0, 52, 127, 63, C_WHITE);
+    dline(0, 53, 127, 53, C_BLACK);
+    strcpy(line, m); strcat(line, "("); strcat(line, v->def[k]); strcat(line, ")>");
+    hg_draw_text(0, 54, 128, 0, line);
+    int x = hg_text_width(line) + 1;
+    hg_draw_text(x, 54, 128 - x, 0, buf);
+    int w = x + hg_text_width(buf) + 1;
+    drect(w, 61, w + 4, 62, C_BLACK);
     dupdate();
 }
 
 /* enter the values; returns 0 on EXIT */
-static int ask(vars_t *v)
+static int ask(const hg_pageinfo *pi, vars_t *v)
 {
     int k = 0;
     char buf[VAL_LEN] = "";
     while(k < v->nv) {
-        prompt_screen(v, k, buf);
+        prompt_screen(pi, v, k, buf);
         int key = getkey().key, len = strlen(buf);
         int d = -1;
         switch(key) {
@@ -232,33 +249,54 @@ static void results_screen(const hg_pageinfo *pi, const vars_t *v)
     dupdate();
 }
 
-void note_calc_run(const hg_pageinfo *pi)
+/* pages: 0 = the problem, 1 = the @식 results (if any), then the solution pages */
+void note_calc_run(const hg_pageinfo *pi, const hg_file *extra, int extra_page)
 {
     static char text[1024];
     vars_t v;
     int has_res = pi->formulas[0] != 0;
+    int nextra = extra ? hg_page_count(extra->text) - extra_page : 0;
 
     read_vars(pi->src, &v);
     while(1) {
-        if(v.nv && !ask(&v)) return;
-        fill(pi->src, &v, text, sizeof text);
-        int mode = 0, scroll = 0;
+        if(v.nv && !ask(pi, &v)) return;
+        int npages = 1 + (has_res ? 1 : 0) + nextra;
+        int cur = 0, scroll = 0;
         while(1) {
-            if(mode == 0) {
+            if(cur == 1 && has_res) results_screen(pi, &v);
+            else {
+                if(cur == 0) fill(pi->src, &v, text, sizeof text);
+                else {
+                    int pg = extra_page + cur - 1 - (has_res ? 1 : 0);
+                    if(extra->pinfo && extra->pinfo[pg].src[0]) fill(extra->pinfo[pg].src, &v, text, sizeof text);
+                    else { strncpy(text, hg_page(extra->text, pg), sizeof text - 1); text[sizeof text - 1] = 0; }
+                    char *e = strchr(text, '\f');
+                    if(e) *e = 0;
+                }
                 dclear(C_WHITE);
                 hg_draw_text(0, -scroll * hg_height, 128, 0, text);
-                if(has_res) dprint(120, 56, C_BLACK, ">");
+                if(scroll == 0 && npages > 1) {
+                    char nb[12];
+                    int n = 0, w;
+                    if(cur + 1 >= 10) nb[n++] = '0' + (cur + 1) / 10;
+                    nb[n++] = '0' + (cur + 1) % 10;
+                    nb[n++] = '/';
+                    if(npages >= 10) nb[n++] = '0' + npages / 10;
+                    nb[n++] = '0' + npages % 10;
+                    nb[n] = 0;
+                    w = n * 4;
+                    if(hg_text_width(text) + 3 + w <= 128) hg_tiny_text(128 - w, 0, nb);
+                }
                 dupdate();
             }
-            else results_screen(pi, &v);
             int key = getkey().key;
             if(key == KEY_EXIT) return;
             if(key == KEY_F1 && v.nv) break;                      /* enter the numbers again */
-            if(key == KEY_RIGHT && has_res) mode = 1;
-            else if(key == KEY_LEFT) mode = 0;
-            else if(key == KEY_EXE && has_res) mode = !mode;
-            else if(key == KEY_DOWN && mode == 0) scroll++;
-            else if(key == KEY_UP && mode == 0 && scroll > 0) scroll--;
+            if(key == KEY_RIGHT && cur < npages - 1) { cur++; scroll = 0; }
+            else if(key == KEY_LEFT && cur > 0) { cur--; scroll = 0; }
+            else if(key == KEY_EXE && cur < npages - 1) { cur++; scroll = 0; }
+            else if(key == KEY_DOWN) scroll++;
+            else if(key == KEY_UP && scroll > 0) scroll--;
         }
     }
 }
