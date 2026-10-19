@@ -177,15 +177,6 @@ static void open_index(int k)
     else browse_files(f);
 }
 
-/* function-key tabs of a problem page: F1 = 추가 (extra information), F2 = 계산 (enter the numbers) */
-static void draw_tabs(const hg_pageinfo *pi)
-{
-    ink = C_WHITE;
-    if(pi->has_extra) { drect(0, 56, 20, 63, C_BLACK); hg_draw_text(3, 55, 20, 0, "추가"); }
-    if(pi->has_calc) { drect(21, 56, 41, 63, C_BLACK); hg_draw_text(24, 55, 20, 0, "계산"); }
-    ink = C_BLACK;
-}
-
 /* A page with links is a menu: ">" marks the selected link line (the whole line is underlined
    when it has one link; with several links on a line the selected token is underlined),
    UP/DOWN move between links, EXE follows the link. Other pages scroll with UP/DOWN. */
@@ -237,7 +228,6 @@ static void view(const hg_file *f, int page, int *last_page)
             if(x0 + w0 + 3 + w <= 128) hg_tiny_text(128 - w, 0, buf);
         }
         const hg_pageinfo *pi = (f->pinfo && (f->pinfo[page].has_extra || f->pinfo[page].has_calc)) ? &f->pinfo[page] : NULL;
-        if(pi) { drect(0, 56, 127, 63, C_WHITE); draw_tabs(pi); }
         if(footer && !pi) {
             drect(0, 56, 127, 63, C_WHITE);
             dprint(1, 57, C_BLACK, "%d/%d", page + 1, pages);
