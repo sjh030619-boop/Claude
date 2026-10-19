@@ -1,0 +1,38 @@
+[색인 K-M]
+KKT(조건) →6/08:1
+KL divergence(값) →8/04:1
+KL divergence(예제 틀린 것) →2/13:1
+KL divergence(틀린 설명) →8/04:5
+MCAR MAR MNAR →10/05:1
+---
+[색인 M-O]
+Min-Max 정규화 →10/02:1
+MLE →8/02:1
+MSE(예제 편미분) →2/22:1
+MSE(편미분) →7/03:1
+overfitting →9/01:1
+---
+[색인 P-R]
+PCA(고유값 분산) →10/06:1
+regularization →9/06:1
+ReLU →5/04:1
+Robust 스케일링 →10/03:1
+R²(SST SSE) →7/10:1
+---
+[색인 S]
+SGD(확률적 경사하강) →7/04:1
+sigmoid →7/05:1
+soft margin →6/05:1
+softmax →7/08:1
+softmax CE 미분 →5/05:1
+---
+[색인 S]
+support vector →6/02:1
+SVM(w b 알파 계산) →6/03:1
+SVM(샘플 3개) →6/03:1
+SVR(예제 ε 안 손실) →2/37:1
+SVR(허용 오차 ε) →6/07:1
+---
+[색인 T-W]
+t-SNE(고차원 확률분포) →10/07:1
+w b 두 배 스케일 →6/01:12
