@@ -64,7 +64,7 @@ def load_adv(size):
     return adv
 
 
-FORBIDDEN = set("&#?~\"'·%*!\\∏Π∥ØΣ") | set("ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩⅰⅱⅲⅳⅴⅵⅶⅷⅸⅹ") | set("⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳")
+FORBIDDEN = set("&#?~\"'·%*!\\∏Π∥ØΣ") | set("ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩⅰⅱⅲⅳⅴⅵⅶⅷⅸⅹ")
 NAME_OK = re.compile(r"^[0-9A-Za-z가-힣_\-]+$")
 WIN_BAD = set('<>:"/\\|?*')   # not allowed in Windows file names (error); other odd characters only warn
 
