@@ -279,11 +279,11 @@ void calc_format(double x, char *out)
 const char *calc_token_text(int tok)
 {
     static const char *txt[CT_COUNT] = {
-        "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "E",
-        "+", "-", "-", "\xC3\x97", "\xC3\xB7",                 /* x (U+00D7), / (U+00F7) */
-        "(", ")", "^", "\xC2\xB2",                             /* x^2 (U+00B2) */
-        "\xE2\x88\x9A(", "sin(", "cos(", "tan(", "ln(", "log(", "e^(", "10^(",
-        "\xCF\x80", "Ans"
+        "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "\x06",
+        "+", "-", "-", "\x01", "\x02",                         /* x and / of the Run-Mat font (calc_font.h) */
+        "(", ")", "^", "\x03",                                 /* square */
+        "\x05(", "sin(", "cos(", "tan(", "ln(", "log(", "e^(", "10^(",   /* sqrt */
+        "\x04", "Ans"
     };
     return tok >= 0 && tok < CT_COUNT ? txt[tok] : "";
 }

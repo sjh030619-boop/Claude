@@ -5,8 +5,8 @@
 #include <gint/keyboard.h>
 
 #include "calc.h"
+#include "calc_font.h"
 #include "fakecalc.h"
-#include "hangul.h"
 
 #define MAXT 48
 
@@ -58,34 +58,55 @@ static void del(void)
 
 /* Layout of the Run-Mat screen: 8 px per line (expression, result, expression, ...), the line being
    edited at y = 48, and the function-key bar (JUMP DEL >MAT MATH) at y = 56..63, copied from the
-   original screenshot bitmap. The Galmuri 7 px glyphs have their ink 2 px below the cell top. */
-#define INK 2
+   original screenshot bitmap. Text uses the system font of the calculator (calc_font.c: 5x7, 6 px
+   pitch, taken from real screens). */
+static int cf_width(const char *s) { return (int)strlen(s) * CF_PITCH; }
+
+static void cf_draw(int x, int y, const char *s)
+{
+    for(; *s; s++, x += CF_PITCH) {
+        const unsigned char *g = calc_font[(unsigned char)*s & 0x7F];
+        for(int r = 0; r < 7; r++)
+            for(int k = 0; k < CF_PITCH; k++)
+                if(g[r] & (0x20 >> k)) dpixel(x + k, y + r, C_BLACK);
+    }
+}
+
+/* a result like "2.5E-03": the exponent marker and its minus sign are the small glyphs of the font */
+static void for_display(const char *in, char *out)
+{
+    int e = 0;
+    for(; *in; in++, out++) {
+        if(*in == 'E') { *out = 0x06; e = 1; continue; }
+        *out = (e && *in == '-') ? 0x07 : *in;
+        e = 0;
+    }
+    *out = 0;
+}
 
 static void draw(void)
 {
     char buf[130], pre[130];
     dclear(C_WHITE);
     for(int i = 0; i < NH; i++) {
-        hg_draw_text(0, i * 16 - INK, 1000, 0, h_expr[i]);
-        int w = hg_text_width(h_res[i]);
-        hg_draw_text(128 - w, i * 16 + 8 - INK, 1000, 0, h_res[i]);
+        cf_draw(0, i * 16, h_expr[i]);
+        cf_draw(128 - cf_width(h_res[i]), i * 16 + 8, h_res[i]);
     }
     text_of(buf, ntok);
     text_of(pre, cur);
-    int wc = hg_text_width(pre), off = wc > 120 ? wc - 120 : 0;
-    hg_draw_text(-off, 48 - INK, 1000, 0, buf);
+    int wc = cf_width(pre), off = wc > 120 ? wc - 120 : 0;
+    cf_draw(-off, 48, buf);
     if(cur == ntok) {                                          /* block cursor at the end of the line */
-        for(int k = 0; k < 6; k++) { dpixel(wc - off + k, 48, C_BLACK); dpixel(wc - off + k, 54, C_BLACK); }
-        for(int k = 0; k < 7; k++) { dpixel(wc - off, 48 + k, C_BLACK); dpixel(wc - off + 5, 48 + k, C_BLACK); }
-    } else dline(wc - off, 48, wc - off, 54, C_BLACK);
+        for(int k = 1; k <= 5; k++) { dpixel(wc - off + k, 48, C_BLACK); dpixel(wc - off + k, 54, C_BLACK); }
+        for(int k = 0; k < 7; k++) { dpixel(wc - off + 1, 48 + k, C_BLACK); dpixel(wc - off + 5, 48 + k, C_BLACK); }
+    } else dline(wc - off + 1, 48, wc - off + 1, 54, C_BLACK);
     if(msg) {                                                   /* error text on the edited line */
-        drect(128 - hg_text_width(msg) - 2, 47, 127, 55, C_WHITE);
-        hg_draw_text(128 - hg_text_width(msg), 48 - INK, 1000, 0, msg);
+        drect(128 - cf_width(msg) - 2, 47, 127, 55, C_WHITE);
+        cf_draw(128 - cf_width(msg), 48, msg);
     }
     for(int y = 56; y < 64; y++)                                /* JUMP DEL >MAT MATH */
         for(int x = 0; x < 128; x++)
             if(fakecalc_bits[y][x >> 3] & (0x80 >> (x & 7))) dpixel(x, y, C_BLACK);
-    hg_tiny_text(106, 58, deg ? "DEG" : "RAD");               /* angle unit; F6 toggles */
     dupdate();
 }
 
@@ -102,7 +123,9 @@ static void execute(void)
         memcpy(h_res[i], h_res[i + 1], sizeof h_res[i]);
     }
     text_of(h_expr[NH - 1], ntok);
-    calc_format(v, h_res[NH - 1]);
+    char plain[28];
+    calc_format(v, plain);
+    for_display(plain, h_res[NH - 1]);
     ans = v;
     memcpy(last_tok, tok, ntok);
     last_n = ntok;

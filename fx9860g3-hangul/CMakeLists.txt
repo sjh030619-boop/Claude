@@ -18,6 +18,7 @@ set(SOURCES
   src/hangul.c
   src/fakecalc.c
   src/fakecalc_data.c
+  src/calc_font.c
   src/calc_eval.c
   src/calc_ui.c
   src/font_data.c

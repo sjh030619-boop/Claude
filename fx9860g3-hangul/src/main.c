@@ -98,6 +98,8 @@ static void draw_list(const list_t *l, int sel, int top)
     dupdate();
 }
 
+static void fake_calc(void);
+
 enum { PICK_BACK, PICK_OPEN, PICK_INDEX1, PICK_INDEX2, PICK_HOME };
 
 /* Number keys jump to the item with that number prefix (two digits in a row make
@@ -116,6 +118,7 @@ static int pick(const list_t *l, int *sel, int *top, int top_level)
         int key = getkey().key;
         int d = digit_of(key);
 
+        if(key == KEY_EXP) { fake_calc(); pending = -1; continue; }
         if(d >= 0) {
             int val = (pending >= 0) ? pending * 10 + d : d;
             pending = (pending >= 0) ? -1 : d;
@@ -219,6 +222,8 @@ static void view(const hg_file *f, int page, int *last_page)
 
         int key = getkey().key;
 
+        if(key == KEY_EXP) { fake_calc(); pending = -1; continue; }
+
         int d = digit_of(key);
         if(d >= 0) {
             if(pending >= 0) {
@@ -226,7 +231,7 @@ static void view(const hg_file *f, int page, int *last_page)
                 pending = -1;
                 if(val <= pages) { page = val - 1; scroll = 0; link_sel = 0; }
             }
-            else if(d == 0) fake_calc();
+            else if(d == 0) { /* 0 alone does nothing; EXP opens the calculator */ }
             else if(d <= pages) {
                 page = d - 1;
                 scroll = 0;
