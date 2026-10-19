@@ -52,7 +52,7 @@ def _wrap(m):
 def script_wrap(page):
     out = []
     for line in page.split("\n"):
-        if "$" in line or line.startswith("@") or ("^" not in line and "_" not in line):
+        if "$" in line or line.startswith("@") or line.startswith("[그림") or ("^" not in line and "_" not in line):
             out.append(line)
             continue
         parts = re.split(r"(\{=[^}]*\})", line)
