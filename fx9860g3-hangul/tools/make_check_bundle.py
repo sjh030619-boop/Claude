@@ -29,7 +29,13 @@ readme = """노트 검사기 (CASIO fx-9860G III 노트용)
 검사하는 것: 줄 폭 128px(링크가 있는 쪽은 122px), 쪽당 6줄, 폰트에 없는 글자,
 번호 중복, 없는 링크 대상(폴더/파일/쪽), 쪽당 링크 8개, 파일·폴더 이름 문자,
 BOM, 쓰지 않기로 한 문자, set.json(notes 옆, name 은 영문 8자 이하).
-추가 파일 없이 이 폴더의 파일 두 개(check_notes.py, advances_7.json)만 있으면 동작한다.
+이 폴더의 파일(check_notes.py, calcpage.py, advances_7.json)만 있으면 동작한다.
+
+문제 쪽의 계산 탭(F2)·추가 탭(F1):
+  쪽 끝에 지시줄:  @계산  /  @식 w1=㉡-2㉢(㉡-㉠)  /  @추가 →4/3:1
+  본문의 원문자 변수 ㉠~㉭ 바로 뒤에 숫자를 붙여 쓴다(예 ㉠1.2). 화면에는 숫자만 보인다.
+  계산 탭은 변수마다 새 값을 묻고, 채운 문제와 @식 결과를 보여 준다. 탭 줄 때문에 본문은 56px 이하.
+  검사기는 @식 을 원래 값으로 계산해 출력하므로 본문 정답과 맞는지 확인한다.
 
 그림 (fig_tool.py, Pillow 필요):
   python3 fig_tool.py 원본그림.jpg notes/figures/이름.png        # 128x54 안으로 흑백 변환 + 미리보기
@@ -40,6 +46,7 @@ BOM, 쓰지 않기로 한 문자, set.json(notes 옆, name 은 영문 8자 이�
 out = out_dir / "check_bundle.zip"
 with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
     z.write(Path(check_notes.__file__), "check_notes.py")
+    z.write(ROOT / "tools" / "calcpage.py", "calcpage.py")
     z.writestr("advances_7.json", adv_json)
     z.write(ROOT / "tools" / "fig_tool.py", "fig_tool.py")
     z.writestr("README.txt", readme)

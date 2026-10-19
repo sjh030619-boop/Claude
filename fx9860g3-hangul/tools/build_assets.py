@@ -18,6 +18,7 @@ import sys
 from pathlib import Path
 
 import noteset
+import calcpage
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -346,6 +347,7 @@ def build_notes(nd):
              '#include "hangul.h"', ""]
     nfiles = npages = 0
     index_info = []
+    pinfo_defs = []
     index_no = {}      # folder position -> 1 (F2) / 2 (F3)
     for fi, (fname, fnum, files) in enumerate(folders):
         if is_index_folder(fname, fnum) and len(index_no) < 2:
@@ -378,13 +380,34 @@ def build_notes(nd):
             src = apply_figures(nd, decompose_marks(f.read_text(encoding="utf-8").replace("\r\n", "\n")))
             pages = [p.strip("\n") for p in re.split(r"^---[ \t]*$", src, flags=re.M)]
             pages = [p for p in pages if p.strip()]
+            infos = []
+            for k, p in enumerate(pages):
+                pages[k], inf = calcpage.split_page(p)
+                infos.append(inf)
+                if inf:
+                    used |= {ord(c) for c in inf.src}
+            if any(i and (i.calc or i.extra) for i in infos):
+                arr = []
+                for inf in infos:
+                    if not inf or not (inf.calc or inf.extra):
+                        arr.append("  { 0, 0, 0, 0, 0, \"\", \"\" },")
+                        continue
+                    ex = inf.extra or (0, 0, 1)
+                    fo = "".join(c_str(lab + "=" + e) + "\\000" for lab, e in inf.formulas)
+                    arr.append(f'  {{ {1 if inf.extra else 0}, {1 if inf.calc else 0}, {ex[0]}, {ex[1]}, {ex[2]}, '
+                               f'"{c_str(inf.src).replace(chr(10), chr(92) + "n")}", "{fo}" }},')
+                pinfo_defs.append(f"static const hg_pageinfo pinfo{len(pinfo_defs)}[] = {{\n" + "\n".join(arr) + "\n};")
+                pi_name = f"pinfo{len(pinfo_defs) - 1}"
+            else:
+                pi_name = "0"
             used |= {ord(c) for c in title} | {ord(c) for p in pages for c in p}
             lines.append(f'  {{ "{c_str(title)}",')
-            lines.append(c_text(pages) + f", {name_num(f.stem)} }},")
+            lines.append(c_text(pages) + f", {name_num(f.stem)}, {pi_name} }},")
             nfiles += 1
             npages += len(pages)
         lines.append("};")
     lines.append("")
+    lines[2:2] = pinfo_defs + [""] if pinfo_defs else []
     lines.append("const hg_folder hg_folders[] = {")
     for fi, (fname, fnum, files) in enumerate(folders):
         count = 1 if fi in index_no else len(files)
@@ -415,7 +438,7 @@ def main():
     a = ap.parse_args()
     ns = noteset.get_set(a.set_id)
     used = build_notes(ns["notes"])
-    used |= {ord(c) for c in "0123456789.+-()^E\u00d7\u00f7\u00b2\u03c0\u221a=sincotanlgeAMRDadF1:"} | {ord(c) for c in "노트Syntax ERROR"}   # calculator screen
+    used |= {ord(c) for c in "0123456789.+-()^E\u00d7\u00f7\u00b2\u03c0\u221a=sincotanlgeAMRDadF1:"} | {ord(c) for c in "노트Syntax ERROR"} | {ord(c) for c in "원래 값입력추가계산?=>↑이전확인Ma ERROR"}   # calculator screen
     build_font(a.font, used, a.only_used)
     # add-in name / output file for CMake (see CMakeLists.txt)
     # menu icon: sets/<id>/icon.json {"text": ..., "art": net|gear|book}; default = add-in name + book

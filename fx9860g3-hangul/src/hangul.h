@@ -11,11 +11,20 @@ extern const uint8_t hg_adv[];        /* advance width per glyph */
 extern const uint16_t hg_bits[];      /* hg_height rows per glyph, MSB = left */
 extern const uint8_t hg_tiny[95][5];  /* 3x5 glyphs, ASCII 0x20..0x7E */
 
+/* Optional per-page data of a problem page with the 추가 (F1) / 계산 (F2) tabs (see tools/calcpage.py). */
+typedef struct {
+    unsigned char has_extra, has_calc;
+    unsigned char lf, ln, lp;   /* extra tab: folder number, file number, 1-based page */
+    const char *src;            /* page text with the variable markers (a circled consonant + number) */
+    const char *formulas;       /* "label=expr" strings, each NUL-terminated, list ends with an empty string */
+} hg_pageinfo;
+
 /* Notes tree (generated: notes.c). In a file's text, pages are separated by '\f'. */
 typedef struct {
     const char *name;
     const char *text;
     int num;                 /* number prefix of the file name (01_ -> 1), or -1 */
+    const hg_pageinfo *pinfo;/* one entry per page, or NULL */
 } hg_file;
 
 typedef struct {

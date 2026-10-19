@@ -78,6 +78,7 @@ WSL2(Ubuntu) 가 없으면 안내가 나옵니다(`wsl --install -d Ubuntu` 후 
 ## 본문에서: 쪽 번호 점프 / 계산기
 - **쪽 번호 점프**: 본문에서 숫자키 `1`~`9` 를 누르면 그 쪽으로 바로 갑니다. 없는 쪽 번호는 무시합니다.
   쪽수가 10쪽 이상이면 두 자리로 누르세요(`1` `2` → 12쪽). 없는 쪽 번호는 무시합니다.
+- **문제 쪽의 계산 탭**: 쪽 끝에 `@계산` / `@식 이름=식` / `@추가 →폴더/파일:쪽` 지시줄이 있으면 화면 아래에 `추가`(F1) `계산`(F2) 탭이 생깁니다. `계산`은 본문의 원문자 변수(`㉠1.2` 처럼 ㉠~㉭ 뒤에 숫자)마다 새 값을 하나씩 묻고(빈 EXE = 원래 값, ↑ 이전, DEL/AC 지움, (−) 부호), 숫자가 바뀐 문제와 `@식` 결과(→ 로 전환)를 보여 줍니다. `추가`는 풀이 쪽으로 이동합니다. 형식 설명: `tools/calcpage.py`.
 - **EXP(×10^x) 키 = 계산기**: 목록·본문에서 `EXP` 키를 누르면 작은 **진짜 계산기**가 뜹니다 (Run-Mat 처럼 한 줄 입력). **EXIT** 로 노트에 돌아옵니다.
   Casio fx-9860GIII 설명서(v3.21)의 계산 규칙을 따릅니다.
   - 키: `0~9 .  + − × ÷  ( )  (−)  x²  ^  EXP  sin cos tan  log ln`, `SHIFT`+`EXP`=π, `SHIFT`+`(−)`=Ans, `SHIFT`+`x²`=√, `SHIFT`+`log`=10^x, `SHIFT`+`ln`=e^x
@@ -136,7 +137,7 @@ WSL2(Ubuntu) 가 없으면 안내가 나옵니다(`wsl --install -d Ubuntu` 후 
 ## PC 에서 동작 시뮬레이션 (gint 스텁)
 ```
 gcc -Isrc -Itools/sim -Dmain=app_main tools/sim/sim.c src/main.c src/hangul.c \
-    src/font_data.c src/notes.c src/fakecalc.c src/fakecalc_data.c src/calc_font.c src/calc_eval.c src/calc_ui.c -o sim
+    src/font_data.c src/notes.c src/fakecalc.c src/fakecalc_data.c src/calc_font.c src/calc_eval.c src/calc_ui.c src/note_calc.c -o sim
 mkdir out && ./sim out "0 EXE EXE EXE DOWN DOWN EXE"    # 키: EXIT EXE UP DOWN LEFT RIGHT F1 F2 F3 DEL AC 0-9 DOT EXP NEG PLUS MINUS MUL DIV LP RP SQUARE POWER LOG LN SIN COS TAN (S-EXP = SHIFT+EXP)
 python3 tools/sim/sheet.py out sheet.png 3             # 프레임을 한 장으로
 ```

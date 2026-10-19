@@ -5,15 +5,18 @@
 #include <gint/keyboard.h>
 
 #include "calc.h"
+#include "note_calc.h"
 #include "hangul.h"
 
 #define MAX_DEPTH 6   /* nested jumps (links / F2) */
 #define MAX_LINKS 8
 #define MARK_W 6      /* gutter for the ">" marker on pages that contain links */
 
+static int ink = C_BLACK;   /* colour of hg_plot: white while drawing text on a black box */
+
 void hg_plot(int x, int y)
 {
-    if(x >= 0 && x < 128 && y >= 0 && y < 64) dpixel(x, y, C_BLACK);
+    if(x >= 0 && x < 128 && y >= 0 && y < 64) dpixel(x, y, ink);
 }
 
 /* ---- lookups by number prefix -------------------------------------------- */
@@ -167,6 +170,15 @@ static void open_index(int k)
     else browse_files(f);
 }
 
+/* function-key tabs of a problem page: F1 = 추가 (extra information), F2 = 계산 (enter the numbers) */
+static void draw_tabs(const hg_pageinfo *pi)
+{
+    ink = C_WHITE;
+    if(pi->has_extra) { drect(0, 56, 20, 63, C_BLACK); hg_draw_text(3, 55, 20, 0, "추가"); }
+    if(pi->has_calc) { drect(21, 56, 41, 63, C_BLACK); hg_draw_text(24, 55, 20, 0, "계산"); }
+    ink = C_BLACK;
+}
+
 /* A page with links is a menu: ">" marks the selected link line (the whole line is underlined
    when it has one link; with several links on a line the selected token is underlined),
    UP/DOWN move between links, EXE follows the link. Other pages scroll with UP/DOWN. */
@@ -214,7 +226,9 @@ static void view(const hg_file *f, int page, int *last_page)
                 if(links[i].line == 0) { w0 = links[i].lw; break; }
             if(x0 + w0 + 3 + w <= 128) hg_tiny_text(128 - w, 0, buf);
         }
-        if(footer) {
+        const hg_pageinfo *pi = (f->pinfo && (f->pinfo[page].has_extra || f->pinfo[page].has_calc)) ? &f->pinfo[page] : NULL;
+        if(pi) { drect(0, 56, 127, 63, C_WHITE); draw_tabs(pi); }
+        if(footer && !pi) {
             drect(0, 56, 127, 63, C_WHITE);
             dprint(1, 57, C_BLACK, "%d/%d", page + 1, pages);
         }
@@ -223,6 +237,17 @@ static void view(const hg_file *f, int page, int *last_page)
         int key = getkey().key;
 
         if(key == KEY_EXP) { fake_calc(); pending = -1; continue; }
+        if(pi && key == KEY_F2 && pi->has_calc) { note_calc_run(pi); pending = -1; continue; }
+        if(pi && key == KEY_F1 && pi->has_extra) {
+            int fo = find_folder(pi->lf);
+            int fi = fo >= 0 ? find_file(fo, pi->ln) : -1;
+            pending = -1;
+            if(fi >= 0 && depth < MAX_DEPTH) {
+                view(&hg_folders[fo].files[fi], pi->lp - 1, NULL);
+                if(go_home) break;
+            }
+            continue;
+        }
 
         int d = digit_of(key);
         if(d >= 0) {

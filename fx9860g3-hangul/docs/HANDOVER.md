@@ -44,7 +44,7 @@
   ```
   python3 tools/build_assets.py --set mlmid
   gcc -Wall -Wextra -Isrc -Itools/sim -Dmain=app_main tools/sim/sim.c src/main.c src/hangul.c \
-      src/font_data.c src/notes.c src/fakecalc.c src/fakecalc_data.c src/calc_font.c src/calc_eval.c src/calc_ui.c -o sim
+      src/font_data.c src/notes.c src/fakecalc.c src/fakecalc_data.c src/calc_font.c src/calc_eval.c src/calc_ui.c src/note_calc.c -o sim
   mkdir out && ./sim out "F2 0 2 PLUS 2 EXE"    # 키 문자열 → out/frame_*.pbm
   python3 tools/sim/sheet.py out sheet.png 3
   gcc -Isrc tools/calc_test.c src/calc_eval.c -o calc_test && ./calc_test     # 계산기 시험 47개
@@ -57,7 +57,7 @@
 ```
 fx9860g3-hangul/
   CLAUDE.md, README.md          구조 요약 / 기능 설명
-  CMakeLists.txt                fxSDK 빌드(소스: main.c hangul.c fakecalc.c fakecalc_data.c calc_font.c calc_eval.c calc_ui.c font_data.c notes.c)
+  CMakeLists.txt                fxSDK 빌드(소스: main.c hangul.c fakecalc.c fakecalc_data.c calc_font.c calc_eval.c calc_ui.c note_calc.c font_data.c notes.c)
   src/main.c                    목록/본문/링크/색인/키 처리 (UI 상태 머신)
   src/hangul.c/.h               UTF-8, 한글 비트맵 글꼴, 줄바꿈, 첨자, 수식 줄, 표, 그림, 링크 파싱, 폭 계산
   src/calc_eval.c, calc_ui.c, calc_font.c, calc.h   진짜 미니 계산기 (파서 + 표시, 라이브러리 없이 sin/ln/exp 직접 구현)
@@ -93,6 +93,8 @@ fx9860g3-hangul/
 - 표 줄: 한 줄에 `│`(U+2502)로 칸 구분, 연속된 줄이 한 표(테두리·칸선 자동, 행 11px + 표 아래 1px, 열 ≤ 6, 폭 = 열 폭 합 + 3×열 수 + 1).
 - 그림: 노트에 `[그림 이름]` 한 줄 → `notes/figures/이름.png`(흑백, 폭 ≤ 128/122, 높이 ≤ 64)를 1비트로 변환해 그린다. 쪽 높이 합 = 일반 줄 10 + 수식 줄 22 + 표 행 11 + 그림 높이 ≤ 64.
 - 금지 문자는 W 경고(& # ? ~ " ' · % * ! \ ∏ Π ∥ Ø Σ ⑪… 등; `|` 는 허용으로 바뀜).
+
+**문제 쪽 계산 탭**: 쪽 끝 `@계산`/`@식`/`@추가` 지시줄 → F2 계산(변수 ㉠~㉭ 값을 하나씩 입력, 채운 문제 + 식 결과), F1 추가 정보 쪽. 형식은 tools/calcpage.py 머리말, 화면은 src/note_calc.c.
 
 **계산기(EXP 키)**: 진짜 계산기. Casio fx-9860GIII 설명서 v3.21 의 계산 우선순위(`6÷2(1+2)=1`, `−2^2=−4`, 곱셈 기호 생략)와 10자리·Norm 1 지수 표시(`2.5E-03`). 키: 숫자 . + − × ÷ ( ) (−) x² ^ EXP sin cos tan log ln, SHIFT+EXP=π, SHIFT+(−)=Ans, SHIFT+x²=√, SHIFT+log=10^x, SHIFT+ln=e^x, DEL/F2 지움, AC 식 지움, ↑ 직전 식, F6 Rad/Deg(표시 없음), EXIT 나가기. 글꼴은 카시오 Run-Mat 5×7 (tools/make_calc_font.py → src/calc_font.c). 화면은 원래 가짜 화면과 같은 구성(8px 줄 간격 3쌍, 네모 커서, 하단 JUMP DEL ▶MAT MATH 줄은 스크린샷 비트맵).
 

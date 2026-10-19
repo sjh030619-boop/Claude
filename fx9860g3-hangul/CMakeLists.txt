@@ -21,6 +21,7 @@ set(SOURCES
   src/calc_font.c
   src/calc_eval.c
   src/calc_ui.c
+  src/note_calc.c
   src/font_data.c
   src/notes.c
 )

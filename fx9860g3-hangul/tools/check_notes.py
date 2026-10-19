@@ -38,6 +38,9 @@ import sys
 import unicodedata
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import calcpage
+
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 SCREEN_W, SCREEN_H = 128, 64
@@ -266,6 +269,10 @@ def displayed_line(line):
     return title + line[t.end():].rstrip(" \r")
 
 
+INFOS = {}
+TAB_BAR_H = 8   # bottom function-key bar of a page with the 계산 / 추가 tabs
+
+
 def check(nd, font):
     adv = load_adv(font)
     max_lines = SCREEN_H // HEIGHT[font]
@@ -279,7 +286,14 @@ def check(nd, font):
         for f in files:
             src = decompose_marks(f.read_text(encoding="utf-8").replace("\r\n", "\n"))
             pages = [p.strip("\n") for p in re.split(r"^---[ \t]*$", src, flags=re.M)]
-            out.append((f, display_name(f.stem), name_num(f.stem), [p for p in pages if p.strip()]))
+            pages = [p for p in pages if p.strip()]
+            shown = []
+            for k, p in enumerate(pages):
+                d, info = calcpage.split_page(p)
+                shown.append(d)
+                if info:
+                    INFOS[(f, k + 1)] = info
+            out.append((f, display_name(f.stem), name_num(f.stem), shown))
         return out
     for d in sorted(p for p in nd.iterdir() if p.is_dir()):
         files = sorted(d.glob("*.txt"))
@@ -309,6 +323,7 @@ def check(nd, font):
 
     link_re = re.compile(r"→(\d+)/(\d+)(?::(\d+))?")
     n_uncertain = n_outside = 0
+    n_calc = []
     for d in sorted(p for p in nd.iterdir() if p.is_dir()):
         stem = re.sub(r"^\d+[_.\- ]+", "", d.name)
         if stem and set(stem) & WIN_BAD:
@@ -342,11 +357,13 @@ def check(nd, font):
                 # normal 10 px; formula line 22 px; table row 11 px, +1 px under each table
                 height = (((len(lines) - ntab - nfig) * HEIGHT[font]) + nform * 12 + ntab * TABLE_ROW_H + ngrp
                           + nfig_h)
-                if height > SCREEN_H:
+                info = INFOS.get((path, pi))
+                budget = SCREEN_H - (TAB_BAR_H if info and (info.calc or info.extra) else 0)
+                if height > budget:
                     extra = (f", 수식 줄 {nform}개(각 {HEIGHT[font] + 12}px)" if nform else "") + \
                             (f", 표 줄 {ntab}개(각 {TABLE_ROW_H}px)" if ntab else "") + \
                             (f", 그림 {nfig}개(높이 합 {nfig_h}px)" if nfig else "")
-                    E(f"{where} 쪽{pi}: 높이 {height}px > {SCREEN_H}px ({len(lines)}줄{extra})")
+                    E(f"{where} 쪽{pi}: 높이 {height}px > {budget}px ({len(lines)}줄{extra})" + (" (계산/추가 탭 줄 8px 제외)" if budget < SCREEN_H else ""))
                 missing = set()
                 has_link = bool(link_re.search(page))
                 limit = SCREEN_W - (MARK_W if has_link else 0)
@@ -408,6 +425,26 @@ def check(nd, font):
                 n_outside += sum(1 for l in lines if l.startswith("교재밖:"))
                 if fnum != 0 and "색인" not in fname and pi == 1 and not (len(lines) > 1 and lines[1].startswith("이럴때:")):
                     W(f"{where} 쪽1: 둘째 줄이 '이럴때:' 로 시작하지 않음")
+                if info:
+                    for m_ in info.errors:
+                        E(f"{where} 쪽{pi}: {m_}")
+                    if link_re.search(page):
+                        E(f"{where} 쪽{pi}: 계산/추가 탭이 있는 쪽 본문에는 링크를 둘 수 없음 (추가 정보는 @추가 줄로)")
+                    if info.extra:
+                        f_, fi_, pg_ = info.extra
+                        if f_ not in index or fi_ not in index[f_]:
+                            E(f"{where} 쪽{pi}: @추가 →{f_}/{fi_} 대상 없음")
+                        elif not 1 <= pg_ <= index[f_][fi_]:
+                            E(f"{where} 쪽{pi}: @추가 쪽 번호 범위 밖")
+                    vals = dict(info.vars)
+                    for lab, expr in info.formulas:
+                        try:
+                            r = calcpage.py_eval(expr, vals)
+                            n_calc.append(f"{where} 쪽{pi}: {lab} = {r:.10g}")
+                        except Exception as ex:
+                            E(f"{where} 쪽{pi}: @식 {lab} 계산 실패 ({ex}) | {expr}")
+                    if len(info.vars) > 8:
+                        E(f"{where} 쪽{pi}: 변수 {len(info.vars)}개 (최대 8개)")
                 links = link_re.findall(page)
                 if len(links) > MAX_LINKS:
                     E(f"{where} 쪽{pi}: 링크 {len(links)}개 (최대 {MAX_LINKS}개)")
@@ -422,6 +459,10 @@ def check(nd, font):
 
     for m in warns:
         print("W", m)
+    if n_calc:
+        print(f"info: 계산 탭 식 {len(n_calc)}개 (원래 값으로 계산한 결과 — 본문 정답과 맞는지 확인)")
+        for m in n_calc[:60]:
+            print("  ", m)
     for m in errors:
         print("E", m)
     nfiles = sum(len(f) for _, _, f in folders)
