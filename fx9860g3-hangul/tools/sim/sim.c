@@ -51,6 +51,7 @@ static int code(const char *s) {
 key_event_t getkey(void) {
     key_event_t e;
     e.mod = e.shift = e.alpha = 0;
+    e.type = KEYEV_DOWN;
     if(kpos < nkeys) {
         const char *k = keys[kpos++];
         if(k[0] == 'S' && k[1] == '-') { e.mod = e.shift = 1; k += 2; }     /* S-EXP = SHIFT + EXP */
@@ -58,6 +59,16 @@ key_event_t getkey(void) {
     }
     else { e.key = KEY_EXIT; if(++exits_after_end > 50) { fprintf(stderr, "runaway\n"); exit(3); } }
     return e;
+}
+
+key_event_t getkey_opt(int options, volatile int *timeout) {
+    (void)options;
+    if(timeout && kpos < nkeys && !strcmp(keys[kpos], "TICK")) {
+        key_event_t e = { 0, 0, 0, 0, KEYEV_NONE };
+        kpos++;
+        return e;
+    }
+    return getkey();
 }
 
 int main(int argc, char **argv) {

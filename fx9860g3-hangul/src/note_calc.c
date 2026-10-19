@@ -3,6 +3,7 @@
 
 #include <gint/display.h>
 #include <gint/keyboard.h>
+#include <gint/timer.h>
 
 #include "calc.h"
 #include "note_calc.h"
@@ -96,6 +97,8 @@ typedef struct {
     unsigned cp[MAX_VARS];
     char def[MAX_VARS][VAL_LEN];
     char val[MAX_VARS][VAL_LEN];
+    char done[MAX_VARS];            /* value entered */
+    char disp[MAX_VARS][VAL_LEN];   /* what the input screen shows for each variable */
 } vars_t;
 
 static void put_cp(char *d, unsigned cp)
@@ -136,7 +139,7 @@ static void read_vars(const char *src, vars_t *v)
 }
 
 /* the page source with every marker + number replaced by the entered value and every {=expr} by its result */
-static void fill(const char *src, const vars_t *v, char *out, int max)
+static void fill(const char *src, const vars_t *v, int use_disp, char *out, int max)
 {
     int n = 0;
     for(const char *s = src; *s && n < max - 40;) {
@@ -160,7 +163,7 @@ static void fill(const char *src, const vars_t *v, char *out, int max)
             while(k < v->nv && v->cp[k] != cp) k++;
             if(*s == '-') s++;
             while((*s >= '0' && *s <= '9') || *s == '.') s++;
-            if(k < v->nv) for(const char *c = v->val[k]; *c && n < max - 4; c++) out[n++] = *c;
+            if(k < v->nv) for(const char *c = use_disp ? v->disp[k] : v->val[k]; *c && n < max - 4; c++) out[n++] = *c;
         }
         else while(at < s && n < max - 4) out[n++] = *at++;
     }
@@ -169,12 +172,24 @@ static void fill(const char *src, const vars_t *v, char *out, int max)
 
 /* The problem with the values entered so far (the others keep their original numbers) and, in the bottom row,
    the question for variable k. */
-static void prompt_screen(const hg_pageinfo *pi, const vars_t *v, int k, const char *buf)
+/* The problem with the values entered so far; variables not entered yet show their circled consonant, and the one
+   being typed blinks (phase 0 = hidden). The bottom row asks for variable k. */
+static void prompt_screen(const hg_pageinfo *pi, vars_t *v, int k, const char *buf, int phase)
 {
     static char text[1024];
     char m[4], line[40];
 
-    fill(pi->src, v, text, sizeof text);
+    for(int j = 0; j < v->nv; j++) {
+        char *d = v->disp[j];
+        if(j == k) {
+            int n = buf[0] ? (int)strlen(buf) : 3;
+            if(phase) { if(buf[0]) strcpy(d, buf); else put_cp(d, v->cp[j]); }
+            else { memset(d, ' ', n); d[n] = 0; }
+        }
+        else if(v->done[j]) strcpy(d, v->val[j]);
+        else put_cp(d, v->cp[j]);
+    }
+    fill(pi->src, v, 1, text, sizeof text);
     put_cp(m, v->cp[k]);
     dclear(C_WHITE);
     hg_draw_text(0, 0, 128, 0, text);
@@ -185,18 +200,27 @@ static void prompt_screen(const hg_pageinfo *pi, const vars_t *v, int k, const c
     int x = hg_text_width(line) + 1;
     hg_draw_text(x, 54, 128 - x, 0, buf);
     int w = x + hg_text_width(buf) + 1;
-    drect(w, 61, w + 4, 62, C_BLACK);
+    if(phase) drect(w, 61, w + 4, 62, C_BLACK);
     dupdate();
 }
 
-/* enter the values; returns 0 on EXIT */
+/* enter the values; returns 0 on EXIT. The timer makes getkey_opt return every 0.4 s so the input can blink. */
 static int ask(const hg_pageinfo *pi, vars_t *v)
 {
-    int k = 0;
+    int k = 0, phase = 1, result = 1;
     char buf[VAL_LEN] = "";
+    volatile int tick = 0;
+    int timer = timer_configure(TIMER_ANY, 400000, GINT_CALL(timer_timeout, &tick));
+    if(timer >= 0) timer_start(timer);
+
+    for(int j = 0; j < v->nv; j++) v->done[j] = 0;
     while(k < v->nv) {
-        prompt_screen(pi, v, k, buf);
-        int key = getkey().key, len = strlen(buf);
+        prompt_screen(pi, v, k, buf, phase);
+        tick = 0;
+        key_event_t ev = getkey_opt(GETKEY_DEFAULT, timer >= 0 ? &tick : NULL);
+        if(ev.type == KEYEV_NONE || ev.key == 0) { phase = !phase; continue; }   /* timeout: blink */
+        phase = 1;
+        int key = ev.key, len = strlen(buf);
         int d = -1;
         switch(key) {
         case KEY_0: d = 0; break; case KEY_1: d = 1; break; case KEY_2: d = 2; break;
@@ -204,7 +228,7 @@ static int ask(const hg_pageinfo *pi, vars_t *v)
         case KEY_6: d = 6; break; case KEY_7: d = 7; break; case KEY_8: d = 8; break;
         case KEY_9: d = 9; break;
         }
-        if(key == KEY_EXIT) return 0;
+        if(key == KEY_EXIT) { result = 0; break; }
         if(d >= 0) { if(len < VAL_LEN - 2) { buf[len] = '0' + d; buf[len + 1] = 0; } }
         else if(key == KEY_DOT) { if(!strchr(buf, '.') && len < VAL_LEN - 2) { buf[len] = '.'; buf[len + 1] = 0; } }
         else if(key == KEY_NEG || key == KEY_MINUS) {
@@ -213,18 +237,20 @@ static int ask(const hg_pageinfo *pi, vars_t *v)
         }
         else if(key == KEY_DEL) { if(len) buf[len - 1] = 0; }
         else if(key == KEY_ACON) buf[0] = 0;
-        else if(key == KEY_UP) { if(k > 0) k--; buf[0] = 0; }
+        else if(key == KEY_UP) { if(k > 0) { k--; v->done[k] = 0; } buf[0] = 0; }
         else if(key == KEY_EXE) {
             int ok = (len == 0), i;
             for(i = 0; i < len; i++) if(buf[i] >= '0' && buf[i] <= '9') ok = 1;
             if(!ok) continue;                       /* just "-" or "." */
             strcpy(v->val[k], len ? buf : v->def[k]);
             if(v->val[k][strlen(v->val[k]) - 1] == '.') v->val[k][strlen(v->val[k]) - 1] = 0;
+            v->done[k] = 1;
             buf[0] = 0;
             k++;
         }
     }
-    return 1;
+    if(timer >= 0) timer_stop(timer);
+    return result;
 }
 
 static void results_screen(const hg_pageinfo *pi, const vars_t *v)
@@ -265,10 +291,10 @@ void note_calc_run(const hg_pageinfo *pi, const hg_file *extra, int extra_page)
         while(1) {
             if(cur == 1 && has_res) results_screen(pi, &v);
             else {
-                if(cur == 0) fill(pi->src, &v, text, sizeof text);
+                if(cur == 0) fill(pi->src, &v, 0, text, sizeof text);
                 else {
                     int pg = extra_page + cur - 1 - (has_res ? 1 : 0);
-                    if(extra->pinfo && extra->pinfo[pg].src[0]) fill(extra->pinfo[pg].src, &v, text, sizeof text);
+                    if(extra->pinfo && extra->pinfo[pg].src[0]) fill(extra->pinfo[pg].src, &v, 0, text, sizeof text);
                     else { strncpy(text, hg_page(extra->text, pg), sizeof text - 1); text[sizeof text - 1] = 0; }
                     char *e = strchr(text, '\f');
                     if(e) *e = 0;
