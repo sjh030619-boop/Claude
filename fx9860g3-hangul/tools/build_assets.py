@@ -356,9 +356,9 @@ def build_notes(nd):
         elif is_index_folder(fname, fnum):
             print(f"warning: more than two index folders; '{fname}' is treated as a normal folder", file=sys.stderr)
     check_dups([n for _, n, _ in folders], 'folder')
-    # folders whose name contains "제시예제" are merged into one document (all pages in a row, left/right to flip);
+    # folders whose name contains "합침" (opt-in) are merged into one document (all pages in a row, left/right to flip);
     # links to them (folder/file:page) are rewritten to folder/1:page-in-the-merged-document
-    merge_fi = {fi for fi, (fname, fnum, files) in enumerate(folders) if fi not in index_no and "제시예제" in fname}
+    merge_fi = {fi for fi, (fname, fnum, files) in enumerate(folders) if fi not in index_no and "합침" in fname}
     linkmap = {}
     for fi in merge_fi:
         fname, fnum, files = folders[fi]

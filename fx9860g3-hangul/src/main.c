@@ -157,6 +157,8 @@ static void fake_calc(void)
 /* ---- viewer / browser (mutually recursive for links and the index) -------- */
 
 static int depth;
+static int view_nav;    /* set by browse_files: view() may step to the neighbouring file with LEFT / RIGHT */
+static int nav_step;    /* view() -> browse_files: +1 / -1 = open the next / previous file, 0 = none */
 static int go_home;   /* set by AC: every level returns until the top-level list */
 
 static void browse_files(int folder);
@@ -193,8 +195,11 @@ static void view(const hg_file *f, int page, int *last_page)
     int ik = index_k_of(f);
     int scroll = 0, footer = 0, link_sel = 0;
     int pending = -1;   /* first digit of a possible two-digit page number */
+    int nav = view_nav;
     hg_link links[MAX_LINKS];
 
+    view_nav = 0;
+    nav_step = 0;
     if(page < 0 || page >= pages) page = 0;
     depth++;
 
@@ -298,6 +303,8 @@ static void view(const hg_file *f, int page, int *last_page)
         }
         else if(key == KEY_RIGHT && page < pages - 1) { page++; scroll = 0; link_sel = 0; }
         else if(key == KEY_LEFT && page > 0) { page--; scroll = 0; link_sel = 0; }
+        else if(nav && key == KEY_RIGHT) { nav_step = 1; break; }    /* last page: the next file of the folder */
+        else if(nav && key == KEY_LEFT) { nav_step = -1; break; }
         else if(key == KEY_DOWN) {
             if(nlinks) { if(link_sel < nlinks - 1) link_sel++; }
             else scroll++;
@@ -331,7 +338,15 @@ static void browse_files(int folder)
             }
         }
         else {
-            view(&hg_folders[folder].files[sel], 0, NULL);
+            /* LEFT / RIGHT at the end of a file go on to the previous / next file of this folder */
+            while(1) {
+                view_nav = 1;
+                view(&hg_folders[folder].files[sel], 0, NULL);
+                if(go_home) break;
+                if(nav_step > 0 && sel < l.count - 1) sel++;
+                else if(nav_step < 0 && sel > 0) sel--;
+                else break;
+            }
         }
         if(go_home) break;
     }
