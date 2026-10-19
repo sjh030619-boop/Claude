@@ -70,7 +70,11 @@ static int cur_folder;
 
 static const char *folder_name(int i) { return hg_folders[i].name; }
 static int folder_num(int i) { return hg_folders[i].num; }
-static int folder_count(int i) { return hg_folders[i].count; }
+/* number shown at the right of a folder: files, or pages for a folder that is one merged document */
+static int folder_count(int i)
+{
+    return hg_folders[i].count == 1 ? hg_page_count(hg_folders[i].files[0].text) : hg_folders[i].count;
+}
 static const char *file_name(int i) { return hg_folders[cur_folder].files[i].name; }
 static int file_num(int i) { return hg_folders[cur_folder].files[i].num; }
 
@@ -161,6 +165,7 @@ static void view(const hg_file *f, int page, int *last_page);
 /* An index folder holds a single merged document. F2 / F3 open it directly at the page where
    you left it; inside that index the same key goes back to page 1 (the table of contents). */
 static int index_page[3];
+static int folder_page[64];   /* page where each single-document folder was left */
 
 static void open_index(int k)
 {
@@ -349,7 +354,8 @@ int main(void)
         else if(hg_folders[sel].count == 1) {
             /* a folder with one document opens it directly (an index uses its own page memory) */
             int ik = hg_folders[sel].idx;
-            view(&hg_folders[sel].files[0], ik ? index_page[ik] : 0, ik ? &index_page[ik] : NULL);
+            int *mem = ik ? &index_page[ik] : &folder_page[sel < 64 ? sel : 63];
+            view(&hg_folders[sel].files[0], *mem, mem);
         }
         else browse_files(sel);
         go_home = 0;                           /* arrived home */

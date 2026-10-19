@@ -356,6 +356,32 @@ def build_notes(nd):
         elif is_index_folder(fname, fnum):
             print(f"warning: more than two index folders; '{fname}' is treated as a normal folder", file=sys.stderr)
     check_dups([n for _, n, _ in folders], 'folder')
+    # folders whose name contains "제시예제" are merged into one document (all pages in a row, left/right to flip);
+    # links to them (folder/file:page) are rewritten to folder/1:page-in-the-merged-document
+    merge_fi = {fi for fi, (fname, fnum, files) in enumerate(folders) if fi not in index_no and "제시예제" in fname}
+    linkmap = {}
+    for fi in merge_fi:
+        fname, fnum, files = folders[fi]
+        off = 1
+        linkmap[fnum] = {}
+        for f in files:
+            n_ = len([p for p in re.split(r"^---[ \t]*$", f.read_text(encoding="utf-8").replace("\r\n", "\n"), flags=re.M) if p.strip()])
+            linkmap[fnum][name_num(f.stem)] = off
+            off += n_
+
+    def remap_link(fo, fl, pg):
+        if fo in linkmap and fl in linkmap[fo]:
+            return fo, 1, linkmap[fo][fl] + pg - 1
+        return fo, fl, pg
+
+    def remap(text):
+        def rep(m):
+            fo, fl, pg = remap_link(int(m.group(1)), int(m.group(2)), int(m.group(3) or 1))
+            if (fo, fl, pg) == (int(m.group(1)), int(m.group(2)), int(m.group(3) or 1)):
+                return m.group(0)
+            return f"→{fo}/{fl}:{pg}"
+        return re.sub(r"→(\d+)/(\d+)(?::(\d+))?", rep, text)
+
     for fi, (fname, fnum, files) in enumerate(folders):
         used |= {ord(c) for c in fname}
         check_dups([name_num(f.stem) for f in files], f'file in {fname}')
@@ -364,7 +390,7 @@ def build_notes(nd):
             # an index folder: one continuous document (see merge_index)
             raw = []
             for f in files:
-                src = decompose_marks(f.read_text(encoding="utf-8").replace("\r\n", "\n"))
+                src = remap(decompose_marks(f.read_text(encoding="utf-8").replace("\r\n", "\n")))
                 pg = [p.strip("\n") for p in re.split(r"^---[ \t]*$", src, flags=re.M)]
                 raw += [p for p in pg if p.strip()]
             pages = merge_index(raw)
@@ -376,17 +402,23 @@ def build_notes(nd):
             lines.append("};")
             index_info.append(f"index F{index_no[fi] + 1} '{fname}': {len(files)} file(s), {len(raw)} page(s) -> 1 document, {len(pages)} page(s) incl. table of contents")
             continue
+        entries = []     # (title, num, pages, infos)
         for f in files:
-            title = display_name(f.stem)
-            src = apply_figures(nd, decompose_marks(f.read_text(encoding="utf-8").replace("\r\n", "\n")))
+            src = remap(apply_figures(nd, decompose_marks(f.read_text(encoding="utf-8").replace("\r\n", "\n"))))
             pages = [p.strip("\n") for p in re.split(r"^---[ \t]*$", src, flags=re.M)]
             pages = [p for p in pages if p.strip()]
             infos = []
             for k, p in enumerate(pages):
                 pages[k], inf = calcpage.split_page(p, ctx.get((fnum, name_num(f.stem), k + 1)))
+                if inf and inf.extra:
+                    inf.extra = remap_link(*inf.extra)
                 infos.append(inf)
                 if inf:
                     used |= {ord(c) for c in inf.src}
+            entries.append((display_name(f.stem), name_num(f.stem), pages, infos))
+        if fi in merge_fi:
+            entries = [(fname, 1, [p for e in entries for p in e[2]], [i for e in entries for i in e[3]])]
+        for title, num, pages, infos in entries:
             if any(i and (i.fill or i.extra) for i in infos):
                 arr = []
                 for inf in infos:
@@ -403,7 +435,7 @@ def build_notes(nd):
                 pi_name = "0"
             used |= {ord(c) for c in title} | {ord(c) for p in pages for c in p}
             lines.append(f'  {{ "{c_str(title)}",')
-            lines.append(c_text(pages) + f", {name_num(f.stem)}, {pi_name} }},")
+            lines.append(c_text(pages) + f", {num}, {pi_name} }},")
             nfiles += 1
             npages += len(pages)
         lines.append("};")
@@ -411,7 +443,7 @@ def build_notes(nd):
     lines[2:2] = pinfo_defs + [""] if pinfo_defs else []
     lines.append("const hg_folder hg_folders[] = {")
     for fi, (fname, fnum, files) in enumerate(folders):
-        count = 1 if fi in index_no else len(files)
+        count = 1 if (fi in index_no or fi in merge_fi) else len(files)
         lines.append(f'  {{ "{c_str(fname)}", folder{fi}, {count}, {fnum}, {index_no.get(fi, 0)} }},')
     lines += ["};", f"const int hg_folder_count = {len(folders)};", ""]
     if FIGS:

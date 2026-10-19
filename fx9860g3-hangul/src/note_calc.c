@@ -163,7 +163,12 @@ static void fill(const char *src, const vars_t *v, int use_disp, char *out, int 
             while(k < v->nv && v->cp[k] != cp) k++;
             if(*s == '-') s++;
             while((*s >= '0' && *s <= '9') || *s == '.') s++;
-            if(k < v->nv) for(const char *c = use_disp ? v->disp[k] : v->val[k]; *c && n < max - 4; c++) out[n++] = *c;
+            if(k < v->nv) {
+                const char *val = use_disp ? v->disp[k] : v->val[k];
+                /* inside ^{..} / _{..} only ASCII can be drawn: a circled consonant becomes a, b, c ... */
+                if((val[0] & 0x80) && n >= 2 && out[n - 1] == '{' && (out[n - 2] == '^' || out[n - 2] == '_')) out[n++] = 'a' + k;
+                else for(const char *c = val; *c && n < max - 4; c++) out[n++] = *c;
+            }
         }
         else while(at < s && n < max - 4) out[n++] = *at++;
     }
@@ -221,6 +226,12 @@ static int ask(const hg_pageinfo *pi, vars_t *v)
         if(ev.type == KEYEV_NONE || ev.key == 0) { phase = !phase; continue; }   /* timeout: blink */
         phase = 1;
         int key = ev.key, len = strlen(buf);
+        if(key == KEY_EXP) {                        /* the calculator, from anywhere in the tab */
+            if(timer >= 0) timer_stop(timer);
+            calc_run();
+            if(timer >= 0) timer_start(timer);
+            continue;
+        }
         int d = -1;
         switch(key) {
         case KEY_0: d = 0; break; case KEY_1: d = 1; break; case KEY_2: d = 2; break;
@@ -317,6 +328,7 @@ void note_calc_run(const hg_pageinfo *pi, const hg_file *extra, int extra_page)
             }
             int key = getkey().key;
             if(key == KEY_EXIT) return;
+            if(key == KEY_EXP) { calc_run(); continue; }
             if(key == KEY_F1 && v.nv) break;                      /* enter the numbers again */
             if(key == KEY_RIGHT && cur < npages - 1) { cur++; scroll = 0; }
             else if(key == KEY_LEFT && cur > 0) { cur--; scroll = 0; }

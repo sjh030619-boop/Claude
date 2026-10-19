@@ -36,6 +36,30 @@ class Info:
         self.errors = []
 
 
+# Bare scripts: `x_j`, `p^14`, `e^㉠2`, `^(m-x)` are drawn as scripts like `x_{j}`, `p^{14}`, `e^{㉠2}`, `^{(m-x)}`
+# (a lone T after ^ is the transpose: `w^Tx` -> `w^{T}x`). Formula lines ($), @ lines and {=expr} are left alone.
+_RUN = ("[" + MARKS + r"](?:-?\d+(?:\.\d+)?)?|\([^()\s{}]{1,12}\)|-?[A-Za-z0-9]+(?:\.\d+)?")
+SCRIPT_RE = re.compile(r"([\^_])(?!\{)(" + _RUN + ")")
+
+
+def _wrap(m):
+    run = m.group(2)
+    if m.group(1) == "^" and len(run) > 1 and run[0] == "T" and run[1].islower():
+        return "^{T}" + run[1:]
+    return m.group(1) + "{" + run + "}"
+
+
+def script_wrap(page):
+    out = []
+    for line in page.split("\n"):
+        if "$" in line or line.startswith("@") or ("^" not in line and "_" not in line):
+            out.append(line)
+            continue
+        parts = re.split(r"(\{=[^}]*\})", line)
+        out.append("".join(p if p.startswith("{=") else SCRIPT_RE.sub(_wrap, p) for p in parts))
+    return "\n".join(out)
+
+
 def has_directives(page):
     return any(l.startswith("@") for l in page.split("\n"))
 
@@ -72,6 +96,7 @@ def build_context(nd):
 def split_page(page, ctx=None):
     """-> (display_text, Info or None). Pages without directives are returned unchanged.
     ctx: values of the variables from the problem page this solution page belongs to (see build_context)."""
+    page = script_wrap(page)
     lines = page.split("\n")
     if not any(l.startswith("@") for l in lines):
         return page, None
