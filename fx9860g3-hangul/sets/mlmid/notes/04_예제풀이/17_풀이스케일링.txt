@@ -3,12 +3,12 @@
 @값
 ---
 풀이
-①Min-Max=(x-min)/(max-min)
-②Z-score=(x-평균)/표준편차
-③Robust=(x-중앙값)/IQR
+①Min-Max=${x-min;max-min}$
+②Z-score=${x-평균;표준편차}$
 @값
 ---
 풀이 (계속)
+③Robust=${x-중앙값;IQR}$
 ④중앙값, IQR 은 이상치에 덜
 흔들림
 @값
